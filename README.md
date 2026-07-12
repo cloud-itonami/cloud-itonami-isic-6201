@@ -172,6 +172,30 @@ its explicit honest-scope statement — this is a real network endpoint,
 not yet production-hardened (single-process/single-tenant, no TLS
 termination built in, no rate limiting).
 
+### Real-model MarketingOps-LLM advisor (optional)
+
+By default the MarketingOps-LLM advisor (`marketing.llm`) is a SEALED,
+deterministic mock — no real language model is ever called.
+`src/marketing/llm_realmodel.clj` adds a real OpenAI-compatible/
+Anthropic HTTP adapter, wired in via `marketing.http/resolve-advisor!`:
+set `ISIC6201_MODEL_API_KEY` and the server uses it instead of the mock
+(unset/blank = unchanged sealed-mock default). Mirrors
+`cloud-itonami-isic-5820`'s equivalent `ISIC5820_MODEL_API_KEY` feature.
+
+```bash
+ISIC6201_API_TOKEN=<token> ISIC6201_MODEL_API_KEY=<real key> clojure -M:serve
+# optional: ISIC6201_MODEL_PROVIDER=openai|anthropic|openclaw (default openai)
+# optional: ISIC6201_MODEL_URL (required for openclaw), ISIC6201_MODEL
+```
+
+**Honest caveat**: this adapter's real-call behavior against an actual
+model API has never been exercised in this build (no credentials are
+available in the environment it was built in) — it is verified only
+against `preflight`'s reporting logic and a local `org.httpkit.server`
+stub standing in for the model API. See **[`docs/api.md`](docs/api.md)**'s
+"Real-model MarketingOps-LLM advisor" section for exactly what is/isn't
+proven.
+
 ## Documentation
 
 - `docs/business-model.md` — the OSS open-business blueprint

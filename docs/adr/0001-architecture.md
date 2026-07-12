@@ -109,3 +109,108 @@ customer-service 系 sibling actor が同じロジックを再導出せず再利
   追加した `kotoba.crm.leadscore`)
 - `kotoba-lang/industry` `resources/kotoba/industry/registry.edn`
   (fleet-wide maturity registry)
+
+## Addendum(2026-07-13): `src/marketing/llm_realmodel.clj` — 実モデル呼び出し
+adapter(honest gap 解消、ただし実呼び出し自体は未検証)
+
+### 課題
+
+`src/marketing/llm.cljc` の MarketingOps-LLM advisor は SEALED/決定論的な
+mock(`marketing.llm/mock-advisor`/`marketing.llm/infer`)であり、実際の
+言語モデルを一切呼ばない。これは本番運用へ向けた既知の gap であり、後で
+operator が実クレデンシャルを与えたときに actor を実モデルへ向けられる
+経路が無かった。**本 sandbox には実モデル API のクレデンシャルが一切無い**
+(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY` 等、env に確認済みで無し)ため、
+この addendum の目的は「実呼び出しを行う」ことではなく「operator が後で
+クレデンシャルを与えたときに動く ADAPTER を配線する」ことに限定される。
+直接の手本は sibling `cloud-itonami-isic-5820` が同じ日に得た
+`src/crm/llm_realmodel.clj`(同一 build 内で先行実装・push 済み)。
+
+### 決定
+
+`orgs/gftdcojp/cloud-itonami`(同一 lineage/org の別 repo、より広い
+"business-os" cloud-itonami 本体)の `cloud_itonami.runtime` 名前空間と
+`cloud-itonami-isic-5820` の `crm.llm-realmodel` が既に確立していた
+`{ITO,ISIC5820}_MODEL_PROVIDER`/`_URL`/`_MODEL`/`_MODEL_API_KEY` という
+env-var 駆動の convention をそのまま踏襲し(非互換な新規 shape を発明
+しない)、`ISIC6201_`-prefix 版として `src/marketing/llm_realmodel.clj`
+(JVM-only、`marketing.http`/`marketing.file-store` と同じ理由——実 HTTP
+I/O は kotoba-wasm/clojurewasm/cljs/nbb 層に portable primitive が無い
+インフラ glue)に実装した。
+
+**graph-facing contract は一切変更しない**: `marketing.llm.cljc` は既に
+`marketing.llm/llm-advisor`(任意の `langchain.model/ChatModel` を
+`marketing.llm/Advisor` protocol でラップする既存の汎用関数)を持って
+いた——`marketing.operation/build`の`:advise`ノードが呼ぶ shape・返す
+proposal shape は `mock-advisor` と完全に同一(`:source` は常に `nil`
+——このactorにはsource-provenance gateが無いという既存の設計を維持)。
+`marketing.llm-realmodel/real-advisor` は `real-chat-model`
+(`langchain.model/openai-model`/`anthropic-model`——両方とも
+`kotoba-lang/langchain` 側で既に汎用実装・テスト済み——を provider に
+応じて呼び分けるだけ)を `llm-advisor` でラップして返すのみで、
+`marketing.llm`側のsystem-prompt・fact抽出・EDN parse ロジックを一切
+複製しない。
+
+`marketing.http/resolve-advisor!` が唯一のトリガー: `$ISIC6201_MODEL_API_KEY`
+が set かつ non-blank なら real advisor、そうでなければ既存の sealed
+mock(`marketing.operation/build`自身の既定と同一)——起動時に選んだ
+モードを `marketing.llm-realmodel/preflight`(API key の値は一切含まない、
+`:api-key?` boolean のみ)と共に必ず print する。`warn-ephemeral-store!`
+が確立した"fail-visible"規律をそのまま advisor 選択にも適用した。加えて
+`marketing.operation/build`は既に`:advisor`optを受け付ける実装だった
+(`crm.operation/build`と同型)ため、`marketing.http/start-server!`側の
+変更のみで済み、`marketing.operation.cljc`自体への変更は不要だった。
+
+### 検証したこと・していないこと(正直な線引き)
+
+- ✅ `preflight` の missing/present 判定ロジック——provider 別
+  (openai/anthropic/openclaw)・url/key の有無・unknown provider・
+  blank env value の全パターンをクレデンシャル無しで検証
+  (`test/marketing/llm_realmodel_test.clj`)。
+- ✅ 実際に送信する HTTP リクエストの wire shape(method・bearer
+  header・JSON body の model/messages フィールド)と、レスポンス
+  parse——ただし相手は**本物の実モデル API ではなく、この build 内で
+  起動したローカル `org.httpkit.server` stub**(実 socket 越しの実
+  HTTP round-trip。`marketing.http_test.clj` が自分自身のサーバーを
+  検証するのと同じ手法をクライアント側に転用)。`marketing.llm/
+  llm-advisor` -> `marketing.llm/parse-proposal` を経由した proposal
+  生成(lifecycle stage 遷移提案、`:source nil` を含む)、および EDN
+  として parse できないモデル応答への fallback(`:noop`/confidence
+  0.0)経路まで含めて検証済み。
+- ❌ **実モデル API(OpenAI/Anthropic/実際の OpenAI 互換ゲートウェイ)が
+  この request shape を実際に受理し、期待通り応答するか**は、この
+  sandbox にクレデンシャルが存在しないため**検証不能・未検証のまま**。
+  偽の endpoint をでっち上げてもこれは証明できないので、行っていない。
+  `ISIC6201_MODEL_API_KEY` を実際に設定した operator は、genuinely
+  配線された adapter を得るが、その実呼び出し挙動は operator 自身が
+  検証するまで未検証のままである。
+
+### Consequences
+
+- (+) `marketing.operation`/`marketing.policy`/`marketing.phase` の
+  governance 経路は一切変更なし——advisor の実装が mock から real に
+  変わるだけで、ConsentGovernor の censorship・phase gate・監査台帳は
+  完全にそのまま。
+- (+) この org 内で3つ目(`cloud-itonami` 本体・`cloud-itonami-isic-5820`
+  に続く)の `ITO_MODEL_*`/`ISIC*_MODEL_*` 実装——同一 shape の再利用
+  により将来の sibling actor(customer-service hub 等)が同じ pattern
+  を再発明せず流用できる。
+- (-) 実モデル呼び出し経路は end-to-end 未検証(上記)。本番投入前に
+  operator が実クレデンシャルで自ら検証する必要がある。
+- (-) tool-calling(構造化出力用の JSON schema tool 定義)は本 addendum
+  では配線していない——`marketing.llm`の既存 system-prompt は「EDN の
+  みを返せ」という自然言語指示に依存しており(mock advisor と同じ
+  contract)、`langchain.model`のtool-calling機構(`langchain.tool`)は
+  今回未使用。実モデルの出力が安定して EDN にならない場合の改善余地と
+  して残す。
+
+### References(追加)
+
+- `cloud-itonami-isic-5820` `src/crm/llm_realmodel.clj` +
+  `docs/adr/0001-architecture.md`のAddendum(直接の手本、同日実装)
+- `orgs/gftdcojp/cloud-itonami/src/cloud_itonami/runtime.cljc`
+  (`model-config`/`model-preflight`/`real-model`/`jvm-http-fn` ——
+  この addendum が踏襲した根本の手本)
+- `kotoba-lang/langchain` `src/langchain/model.cljc`(`anthropic-model`/
+  `openai-model`——実際の HTTP リクエスト構築・レスポンス parse は
+  ここに既に汎用実装済みで、本 addendum はこれを呼ぶだけ)

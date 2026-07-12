@@ -41,7 +41,19 @@
   without starting anything if the env var is unset — there is no 'runs
   with auth disabled' path. See docs/api.md for the full contract, and
   its explicit honest-scope statement (single-process, single-tenant, no
-  TLS termination, no rate limiting)."
+  TLS termination, no rate limiting).
+
+  MarketingOps-LLM advisor selection (see `resolve-advisor!`, `marketing.
+  llm-realmodel`): defaults to `marketing.llm/mock-advisor` (the sealed/
+  deterministic advisor `marketing.operation/build` itself already
+  defaults to) unless `$ISIC6201_MODEL_API_KEY` is set and non-blank, in
+  which case it wires `marketing.llm-realmodel/real-advisor` — a real
+  OpenAI-compatible/Anthropic HTTP model call — instead. Either way,
+  `resolve-advisor!` prints which mode it picked (and `marketing.llm-
+  realmodel/preflight`'s config, minus the key value) at server start,
+  the same fail-visible discipline `warn-ephemeral-store!` already
+  established for storage. Mirrors `cloud-itonami-isic-5820`'s `crm.http/
+  resolve-advisor!`."
   (:require [clojure.string :as str]
             [clojure.data.json :as json]
             [org.httpkit.server :as httpkit]
@@ -49,6 +61,8 @@
             [langgraph.graph :as g]
             [marketing.store :as store]
             [marketing.file-store :as file-store]
+            [marketing.llm :as llm]
+            [marketing.llm-realmodel :as llm-realmodel]
             [marketing.operation :as operation]
             [marketing.dashboard :as dashboard])
   (:gen-class))
@@ -323,6 +337,43 @@
 
 ;; ───────────────────────── server lifecycle ─────────────────────────
 
+(defn- describe-advisor-mode
+  "Formats `marketing.llm-realmodel/preflight`'s config for a startup
+  print line. Never includes the API key value — `preflight`'s map only
+  ever carries `:api-key?` (boolean), not the key itself."
+  [mode {:keys [provider url model ok? missing]}]
+  (str "marketing.http: MarketingOps-LLM advisor = " mode
+       " (provider=" (name provider) " model=" model
+       (when url (str " url=" url))
+       (when-not ok? (str " -- WARNING missing env: " (pr-str missing)))
+       ")"))
+
+(defn- resolve-advisor!
+  "Picks the `marketing.llm/Advisor` for `start-server!`/`-main`: the
+  sealed mock (`marketing.llm/mock-advisor` — deterministic, offline, no
+  real model calls; the same default `marketing.operation/build` itself
+  already falls back to) unless `$ISIC6201_MODEL_API_KEY` is set and
+  non-blank, in which case `marketing.llm-realmodel/real-advisor` (a real
+  HTTP call to an OpenAI-compatible/Anthropic endpoint) is used instead.
+  Always prints which mode it picked, plus `marketing.llm-realmodel/
+  preflight`'s honest missing/present report, before returning — this
+  MUST work correctly (and say so) with zero credentials present, which
+  is exactly this build's own sandbox.
+
+  NOTE the real-model path's END-TO-END behavior against an actual model
+  API has not been exercised anywhere in this build (no credentials were
+  ever available to do so) — only `preflight`'s reporting and the
+  request/response wire shape against a local stub server are verified
+  (see `test/marketing/llm_realmodel_test.clj`). Choosing this mode wires
+  a real, untested-against-a-real-model adapter, not a proven-safe one."
+  []
+  (let [{:keys [api-key?] :as pf} (llm-realmodel/preflight)]
+    (if api-key?
+      (do (println (describe-advisor-mode "REAL MODEL" pf))
+          (llm-realmodel/real-advisor))
+      (do (println (describe-advisor-mode "SEALED MOCK (no ISIC6201_MODEL_API_KEY)" pf))
+          (llm/mock-advisor)))))
+
 (defn start-server!
   "Starts the real HTTP server. `store` — any `marketing.store/Store`
   (`MemStore`, `marketing.store/DatomicStore`, or `marketing.file-store/
@@ -331,17 +382,23 @@
   `token` — the bearer token EVERY protected request must present, and
   MUST be a non-blank string. FAIL CLOSED: throws (refuses to start) if
   `token` is blank/nil rather than starting with auth silently disabled.
+  `advisor` — optional `marketing.llm/Advisor` override (tests/callers
+  that want a specific advisor injected); when omitted, `resolve-advisor!`
+  picks the sealed mock or the real-model adapter from
+  `$ISIC6201_MODEL_API_KEY` (see its docstring) and prints which one it
+  picked.
 
   Returns the `org.httpkit.server.HttpServer`; use
   `org.httpkit.server/server-port` to read the actual bound port (useful
   with `:port 0` for tests) and `org.httpkit.server/server-stop!` to
   stop it."
-  [{:keys [store port token] :or {port default-port}}]
+  [{:keys [store port token advisor] :or {port default-port}}]
   (when (str/blank? token)
     (throw (ex-info (str "ISIC6201_API_TOKEN (or explicit `token`) must be a non-blank "
                           "value — refusing to start marketing.http with auth disabled")
                      {})))
-  (let [actor (operation/build store)
+  (let [advisor (or advisor (resolve-advisor!))
+        actor (operation/build store {:advisor advisor})
         handler (-> (make-handler {:store store :actor actor :token token})
                     wrap-params)]
     (httpkit/run-server handler {:port port :legacy-return-value? false})))
@@ -416,7 +473,16 @@
                           FileStore` at that path (survives restart); if
                           unset, runs against an ephemeral `marketing.
                           store/seed-db` and prints a stderr WARNING that
-                          state will be lost on exit."
+                          state will be lost on exit.
+    $ISIC6201_MODEL_API_KEY (+ optional $ISIC6201_MODEL_PROVIDER/_URL/
+                          _MODEL) — optional. See `resolve-advisor!`/
+                          `marketing.llm-realmodel`: if set and non-blank,
+                          runs the MarketingOps-LLM advisor as a real
+                          model call instead of the sealed mock; either
+                          way, prints which mode it picked at startup.
+                          Real-model end-to-end behavior against an
+                          actual API is UNVERIFIED in this build (see
+                          docs/api.md's Real-model advisor section)."
   [& _]
   (let [token (System/getenv "ISIC6201_API_TOKEN")
         port  (if-let [p (System/getenv "ISIC6201_HTTP_PORT")]
