@@ -71,6 +71,11 @@ The token is whatever value the server was started with — see
   code.
 - Every request to a protected endpoint that doesn't present the exact
   matching bearer token gets `401 {"error": "unauthorized"}`.
+- The token match itself is a **constant-time comparison**
+  (`java.security.MessageDigest/isEqual` over UTF-8 bytes, not `=`) —
+  closes the timing-attack gap recorded as an unmitigated finding in
+  ADR-2607124600 (raised against the `cloud-itonami-isic-5820` sibling's
+  identical `authorized?` pattern, and equally applicable here).
 
 There is no built-in default/fallback token anywhere in `marketing.http`
 — you must supply one.
