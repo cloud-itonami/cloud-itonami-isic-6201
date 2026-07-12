@@ -84,6 +84,46 @@ request + injected role/phase context
 lifecycle stage, or updates a lead's score the ConsentGovernor would
 reject.
 
+## Dashboard (`src/marketing/dashboard.cljc`)
+
+This actor's first aggregate-view capability — NOT the governed
+single-record disclosure `docs/DESIGN.md` §8 explains this actor
+deliberately does not have (no `report.cljc`, no `:disclosure/query`-
+style op). `marketing.dashboard` instead aggregates across every
+contact/campaign already in a `marketing.store/Store`:
+
+- **Lead-lifecycle funnel** (`lifecycle-funnel`) — stage-counts (current
+  snapshot) and reached-counts (how far contacts got), via
+  `kotoba.crm.funnel` over this actor's own `marketing.facts/lifecycle-
+  stage-order` / `exit-stages`.
+- **Conversion rates** (`conversion-rates`) — stage-to-stage rates
+  (subscriber→lead→mql→sql→customer) via `kotoba.crm.funnel/conversion-
+  rate`.
+- **Campaign performance rollup** (`campaign-rollup`) — per-campaign
+  successful-send counts and `consent-revoked-send-gate` rejection
+  counts, aggregated from data the ConsentGovernor already produces.
+- **Lead-score distribution** (`lead-score-distribution`) — a histogram
+  and summary stats over every contact's score, always recomputed via
+  `kotoba.crm.leadscore/recompute-score` (never the stored/cached
+  `:lead-score`), plus explicit stale-score detection.
+
+`marketing.dashboard/snapshot` is the gated entry point (`marketing.
+dashboard/authorized?` checks the caller's role against `marketing.
+policy/permissions`'s `:marketing/view-dashboard` entitlement, granted
+to `:marketer`/`:marketing-manager`; anything else gets `{:authorized?
+false :reason :rbac}`, never partial data). See `docs/DESIGN.md` §9 for
+the full RBAC-gating rationale.
+
+**Inherited R0 limits (honest scope, not this actor's own choice):**
+- From `kotoba.crm.funnel`: a point-in-time snapshot only — no time
+  series, no stage-history log. A contact currently in an exit stage
+  (e.g. `:unsubscribed`) is excluded from `reached-counts` entirely,
+  because this actor's contact shape carries no `:reached-stage` fact
+  to recover which forward stage it exited from.
+- From `kotoba.crm.leadscore`: a fixed weighted-point scoring model
+  only — no ML/predictive scoring, no per-account custom weights, no
+  inactivity-based decay applied here.
+
 ## Run
 
 ```bash

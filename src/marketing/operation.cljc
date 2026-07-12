@@ -21,14 +21,21 @@
             [marketing.store :as store]))
 
 (defn- commit-fact [request context proposal]
-  {:t          :committed
-   :op         (:op request)
-   :actor      (:actor-id context)
-   :subject    (:subject request)
-   :disposition :commit
-   :basis      (:cites proposal)
-   :source     (:source proposal)
-   :summary    (:summary proposal)})
+  ;; carries `:campaign-id`/`:contact-id` through from `request` when
+  ;; present — same rationale as `marketing.policy/hold-fact` (see its
+  ;; docstring): a committed send's ledger fact should correlate to a
+  ;; campaign as directly as a rejected one does, rather than only via a
+  ;; free-text `:summary` string.
+  (cond-> {:t          :committed
+           :op         (:op request)
+           :actor      (:actor-id context)
+           :subject    (:subject request)
+           :disposition :commit
+           :basis      (:cites proposal)
+           :source     (:source proposal)
+           :summary    (:summary proposal)}
+    (contains? request :campaign-id) (assoc :campaign-id (:campaign-id request))
+    (contains? request :contact-id)  (assoc :contact-id (:contact-id request))))
 
 (defn- commit-record [request _context proposal]
   {:effect  (:effect proposal)

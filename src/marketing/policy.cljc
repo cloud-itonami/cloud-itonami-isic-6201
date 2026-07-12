@@ -74,9 +74,17 @@
 
 (def confidence-floor 0.6)
 
+;; `:marketing/view-dashboard` (added alongside `src/marketing/dashboard.cljc`)
+;; is a READ-only entitlement, not a write op routed through the
+;; MarketingOps-LLM -> ConsentGovernor -> commit pipeline (there is no
+;; proposal to censor for a deterministic aggregate rollup). It is checked
+;; directly by `marketing.dashboard/authorized?` against this same table —
+;; see `docs/DESIGN.md` "Dashboard" section for the full reasoning.
 (def permissions
-  {:marketer          #{:campaign/send-message :lead/advance-stage :lead/update-score}
-   :marketing-manager #{:campaign/send-message :lead/advance-stage :lead/update-score}})
+  {:marketer          #{:campaign/send-message :lead/advance-stage :lead/update-score
+                        :marketing/view-dashboard}
+   :marketing-manager #{:campaign/send-message :lead/advance-stage :lead/update-score
+                        :marketing/view-dashboard}})
 
 ;; ───────────────────────── checks ─────────────────────────
 
@@ -164,12 +172,23 @@
      :score-mismatch score-mismatch}))
 
 (defn hold-fact
+  "NOTE: carries `:campaign-id`/`:contact-id` through from `request` when
+  present (e.g. for a rejected `:campaign/send-message`) — added so the
+  ledger fact for a REJECTED send still correlates to a campaign, the
+  same way a committed send's fact does via `marketing.operation/commit-
+  fact`. Before this fix a `consent-revoked-send-gate` rejection was
+  recorded with no campaign-id anywhere in the persisted fact, making a
+  per-campaign rejection rollup (`marketing.dashboard/campaign-rollup`)
+  impossible from ledger history alone — this was a real gap, not a
+  hypothetical one, found while building the dashboard."
   [request context verdict]
-  {:t          :policy-hold
-   :op         (:op request)
-   :actor      (:actor-id context)
-   :subject    (:subject request)
-   :disposition :hold
-   :basis      (mapv :rule (:violations verdict))
-   :violations (:violations verdict)
-   :confidence (:confidence verdict)})
+  (cond-> {:t          :policy-hold
+           :op         (:op request)
+           :actor      (:actor-id context)
+           :subject    (:subject request)
+           :disposition :hold
+           :basis      (mapv :rule (:violations verdict))
+           :violations (:violations verdict)
+           :confidence (:confidence verdict)}
+    (contains? request :campaign-id) (assoc :campaign-id (:campaign-id request))
+    (contains? request :contact-id)  (assoc :contact-id (:contact-id request))))

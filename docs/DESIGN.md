@@ -91,3 +91,65 @@ op が存在しない(send/stage-advance/score-update の3op のみ)ため、
 存在しないガバナンス経路のために `report.cljc` を新設することはしない
 — 未使用のコードパスを追加するより、必要になった時点で明示的に設計する
 方針(honesty over coverage)。
+
+## 9. Dashboard(`src/marketing/dashboard.cljc`)— 最初の aggregate-view
+
+上記 §8 の「disclosure op が無い」は今も真だが、それとは別の種類の read
+capability として `marketing.dashboard` を追加した: **単一レコードの
+governed disclosure ではなく、store 全体を横断した aggregate rollup**
+(lead lifecycle funnel・conversion rate・campaign send/rejection
+rollup・lead-score distribution)。`kotoba.crm.funnel` 自身の docstring が
+引く区別と同型 — "funnel は各 actor の `crm.report`(1レコードずつの
+governed disclosure rendering)とは別概念。funnel は1レコードを
+renderしない、多数のレコードを横断して集計するだけ" — であり、
+`marketing.dashboard` はまさにその aggregate 側にあたる。
+
+**中身は `kotoba.crm.funnel`/`kotoba.crm.leadscore` と同じ性質の pure・
+storage-agnostic 関数群**(I/O なし、store は呼び出し側が渡す)。lead
+score は常に `kotoba.crm.leadscore/recompute-score` で再計算し、格納済み
+`:lead-score` を一度も信用しない — `marketing.policy` の
+`lead-score-mismatch` gate と同じ「片側を recompute して比較」規律を
+read 側にも適用している。campaign rollup は ConsentGovernor が既に生成
+している ledger fact(commit / `consent-revoked-send-gate` hold)を集計
+するだけで、新しい tracking は発明していない。
+
+### RBAC gating の決定と理由
+
+**この aggregate view には RBAC gate を掛けた**(`marketing.dashboard/
+authorized?` が `marketing.policy/permissions` の新規entitlement
+`:marketing/view-dashboard` を直接チェックする、`:marketer`/
+`:marketing-manager` 双方に付与)。理由:
+
+1. `marketing.phase` 自身が「この actor には5820の`:disclosure/query`の
+   ような read op が無いため phase 0 が全writeをholdする最も保守的な床」
+   と明記しており、read アクセスへの姿勢が「無条件公開」ではなく
+   「まだ存在しない」だったことを示している——read capability を追加する
+   以上、既存の permissions 語彙(`:marketer`/`:marketing-manager` が
+   write 3opに持つのと同じ table)に沿って明示的に守るのが筋が通る。
+2. 一方で、**dashboard は `marketing.operation`(MarketingOps-LLM →
+   ConsentGovernor → commit の StateGraph)を一切通らない**——決定論的な
+   集計であり LLM proposal が存在しないため、検閲すべき proposal が無い。
+   よって governance は「フル graph を通す」のではなく「RBAC check
+   だけを直接呼ぶ」形にした(`policy/check`のrbac-violations相当のロジック
+   を dashboard 側で再利用する軽量版)。5820 の `:disclosure/query` が
+   フル graph(license/column-scope gate込み)を通るのとはこの点で異なる
+   —— dashboard には column-scope的な粒度制御もない(store全体の集計のみ、
+   1レコード開示ではないため)。
+3. `:marketer`/`:marketing-manager` は既存 write 権限が完全に同一集合
+   なので、新規 read entitlement もこの2roleに同じスコープで付与した
+   (差別化する理由が無い)。`:guest`等の未登録 role は fail-closed で
+   拒否(`{:authorized? false :reason :rbac}`、部分データを絶対返さない)。
+
+### 実装過程で見つかった実バグ(fix済み)
+
+`marketing.policy/hold-fact` が REJECTされた送信の ledger fact に
+`:campaign-id` を一切含んでいなかった(`:op`/`:subject`(=contact-id)/
+`:basis` のみ)。dashboard の campaign rollup が「拒否件数をどの campaign
+に帰属させるか」を ledger だけから復元できない——`request` には既に
+`:campaign-id` が来ているのに、hold-fact 構築時に捨てられていた実バグ。
+`marketing.policy/hold-fact` と(対称性のため)`marketing.operation`の
+private `commit-fact` の両方に `:campaign-id`/`:contact-id` を
+`cond->` で追加して修正した(既存テストのアサーションは特定キーの
+spot-check のみで全体equality比較はしていないため non-breaking)。
+修正前の(`:campaign-id` を持たない)過去 ledger fact は dashboard 側で
+`:unknown` バケットに集計し、黙って落とさない。
