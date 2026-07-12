@@ -27,15 +27,13 @@ stub. It is also **not yet production-hardened**:
 - **No request logging/observability** beyond whatever the operator adds
   externally (this file adds none beyond what `httpkit`/the JVM already
   emit on stdout/stderr).
-- **`clojure -M:serve` (`marketing.http/-main`) runs against a fresh,
-  in-memory `marketing.store/seed-db` with NO persistence across
-  restarts.** Every restart of the process resets the store to the same
-  small fictitious demo dataset `marketing.sim` uses — any send/stage-
-  advance/score-update committed while the process is up is lost the
-  moment it stops. Operators who want a persistent/real backend must
-  call `marketing.http/start-server!` programmatically with their own
-  `marketing.store/datomic-store`/`DatomicStore` instance instead of
-  using the CLI entry point (`-main`) directly.
+- **`clojure -M:serve` (`marketing.http/-main`) is disk-durable only if
+  you set `$ISIC6201_STORE_FILE`.** If unset, it falls back to a fresh,
+  in-memory `marketing.store/seed-db` and now prints a stderr WARNING
+  every time it does so — there is no silent ephemeral default. See
+  "Persistence" below for the full story, including why
+  `marketing.store/DatomicStore` is deliberately NOT offered as a
+  persistent alternative despite its name.
 - **No HTTP endpoint for human approval/rejection of an escalated
   proposal.** `marketing.operation`'s graph has a real human-in-the-loop
   interrupt (`:request-approval`) for a `lead-score-mismatch` SOFT
@@ -48,9 +46,10 @@ stub. It is also **not yet production-hardened**:
   `:resume? true`) — a follow-up task, not part of this first HTTP
   layer.
 
-If you need multi-tenant isolation, TLS, rate limiting, persistence, or
-the approval resume endpoint, that is future work — do not assume this
-service already has it.
+If you need multi-tenant isolation, TLS, rate limiting, or the approval
+resume endpoint, that is future work — do not assume this service
+already has it. Persistence is covered separately below, since it now
+has a genuinely durable option.
 
 ## Auth
 
@@ -81,15 +80,77 @@ There is no built-in default/fallback token anywhere in `marketing.http`
 ```bash
 ISIC6201_API_TOKEN=<your-token> clojure -M:serve
 # optional: ISIC6201_HTTP_PORT=9000 (default 8080)
+# optional: ISIC6201_STORE_FILE=/path/to/db.edn -- see "Persistence" below
 ```
 
-This starts the server against a fresh `marketing.store/seed-db` — the
-same small fictitious demo dataset `marketing.sim` uses (contacts
-`contact-100`..`contact-600`, campaigns `camp-100`/`camp-200`), **with
-no persistence across restarts** (see "Honest scope" above). To run
-against a real/persistent backend, call `marketing.http/start-server!`
-programmatically with your own `marketing.store/datomic-store`/
-`DatomicStore` instance instead of using the CLI entry point.
+If `$ISIC6201_STORE_FILE` is **unset**, `-main` starts the server against
+a fresh `marketing.store/seed-db` — the same small fictitious demo
+dataset `marketing.sim` uses (contacts `contact-100`..`contact-600`,
+campaigns `camp-100`/`camp-200`) — **and prints a WARNING to stderr**
+that all state will be lost when the process exits. There is no
+silent/default path into that mode.
+
+### Persistence
+
+`marketing.http/-main` picks its `Store` backend from
+`$ISIC6201_STORE_FILE`:
+
+- **Set** (e.g. `ISIC6201_STORE_FILE=/var/lib/isic6201/db.edn`) — runs
+  against `marketing.file-store/FileStore`: a full EDN snapshot of every
+  contact/campaign/send/engagement-history record and the audit ledger
+  is written to that path after every mutating call (write-then-rename,
+  so a crash mid-write can't leave a truncated snapshot), and loaded
+  back from that path the next time the process starts. **This is
+  disk-durable and has been verified end-to-end**: a real
+  `clojure -M:serve` process was started against a temp
+  `ISIC6201_STORE_FILE`, a real `POST /advance-stage` committed
+  `contact-100`'s lifecycle stage `:lead` → `:mql` over real HTTP, the
+  process was killed (`kill -9`, not a graceful shutdown), restarted
+  against the same file, and `GET /dashboard` showed the committed
+  change was still there (lead-lifecycle stage-counts shifted from
+  `{:lead 3 :mql 1}` to `{:lead 2 :mql 2}`). As an independent
+  confirmation that the RESTARTED process actually loaded the persisted
+  state (not just that the response happened to say "held"): a follow-up
+  `POST /advance-stage` attempting to revert `contact-100` from `:mql`
+  back to `:lead` was rejected by `stage-sequence-gate`, and the
+  violation detail text explicitly named the contact's current stage as
+  `:mql` (`"contact contact-100 の現stage :mql から :lead への遷移は無効"`) —
+  a value the restarted process could only have produced by reading it
+  back from the on-disk snapshot, since a fresh in-memory seed would
+  have shown `:lead`. See `marketing.file-store`'s ns docstring for what
+  this backend is NOT (not multi-writer-safe — one path, one process at
+  a time; no query engine; no transaction history).
+- **Unset** — runs against `marketing.store/seed-db` (ephemeral,
+  in-memory, discarded on exit) and prints a stderr WARNING every time.
+
+**`marketing.store/datomic-store`/`DatomicStore` is deliberately NOT
+wired into `-main` at all**, despite this file's prior revision
+suggesting operators call it directly for a "persistent/real backend" —
+that suggestion was inaccurate for how `DatomicStore` is actually
+implemented in this repo (checked directly, not assumed by analogy to
+`cloud-itonami-isic-5820`'s identical finding about its own
+`crm.store/DatomicStore`). Its constructor
+(`(->DatomicStore (langchain.db/create-conn schema))`) builds a plain
+`(atom {:db ... :log []})` via `langchain.db` (a pure, dependency-free,
+**in-process** EAV emulation — see that ns's docstring) — there is no
+connection URI, no socket, no file, nothing that outlives the JVM heap.
+It is Datomic-API-*shaped* (which is what makes
+`test/marketing/store_contract_test.clj`'s `MemStore ≡ DatomicStore`
+parity test meaningful for a *future* backend swap), not
+Datomic-*backed*. As shipped, selecting `DatomicStore` would be exactly
+as ephemeral as `seed-db` — just with a name that implies otherwise —
+so this fix does not offer it as an `-main` option under any env var
+name (e.g. an `ISIC6201_DATOMIC_URI`), to avoid exactly the "silently
+substitute an in-memory store relabeled as persistent" trap.
+
+Making `DatomicStore` genuinely durable is real follow-up work, not done
+here: `marketing.store` would need to accept an injected `:db-api` map
+(the shape `langchain.db/api` already documents) instead of hardcoding
+calls to `langchain.db` directly, pointed at either a real Datomic Local
+process or a live kotoba-server pod via `langchain.kotoba-db/kotoba-api`
+— both require infrastructure (a running server, credentials) this
+sandboxed build environment does not have, so that path was not
+attempted here rather than faked.
 
 ## Endpoints
 

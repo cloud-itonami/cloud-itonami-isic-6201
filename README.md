@@ -141,17 +141,36 @@ governance logic (mirrors `cloud-itonami-isic-5820`'s `src/crm/http.clj`).
 ```bash
 ISIC6201_API_TOKEN=<your-token> clojure -M:serve
 # optional: ISIC6201_HTTP_PORT=9000 (default 8080)
+# optional: ISIC6201_STORE_FILE=/path/to/db.edn -- disk-durable store (see docs/api.md's Persistence section)
 ```
 
 Auth is a fail-closed bearer token (`Authorization: Bearer <token>`) —
 the server refuses to start at all without `ISIC6201_API_TOKEN` set.
 Endpoints: `GET /` and `GET /health` (no auth); `POST /send`,
 `POST /advance-stage`, `POST /update-score`, and `GET /dashboard` (auth
-required). By default this runs against a fresh, in-memory
-`marketing.store/seed-db` with **no persistence across restarts** — see
-`docs/api.md` for the full endpoint reference, request/response shapes,
-curl examples, and honest-scope statement (single-process,
-single-tenant, no TLS termination, no rate limiting).
+required).
+
+**Persistence**: without `$ISIC6201_STORE_FILE`, `-main` runs against an
+ephemeral in-memory store and prints a stderr WARNING — all state is
+lost on restart. Set `ISIC6201_STORE_FILE` to a path to run against
+`marketing.file-store/FileStore` instead, a disk-durable store verified
+end-to-end (real process, real HTTP commit, real `kill -9`, real
+restart, data still there — including an independent
+`stage-sequence-gate` rejection whose violation text named the
+restored, not the seeded, lifecycle stage). See
+**[`docs/api.md`](docs/api.md)**'s Persistence section for the full
+explanation, including why `marketing.store/DatomicStore` — despite its
+name — is *not* wired in as a durable option (it is an in-process EAV
+atom with no connection URI, exactly as ephemeral as the default store;
+the same finding `cloud-itonami-isic-5820` made about its own
+`crm.store/DatomicStore`, checked independently here rather than
+assumed).
+
+See **[`docs/api.md`](docs/api.md)** for the full endpoint reference
+(request/response shapes, auth header, error codes, curl examples) and
+its explicit honest-scope statement — this is a real network endpoint,
+not yet production-hardened (single-process/single-tenant, no TLS
+termination built in, no rate limiting).
 
 ## Documentation
 
