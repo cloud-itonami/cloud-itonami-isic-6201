@@ -131,11 +131,34 @@ clojure -M:dev:test
 clojure -M:dev:run
 ```
 
+## Running as a service
+
+`src/marketing/http.clj` is a minimal, real HTTP service layer over the
+same `marketing.operation`/`marketing.policy`/`marketing.dashboard`
+actor graph — a thin JSON adapter, not a reimplementation of any
+governance logic (mirrors `cloud-itonami-isic-5820`'s `src/crm/http.clj`).
+
+```bash
+ISIC6201_API_TOKEN=<your-token> clojure -M:serve
+# optional: ISIC6201_HTTP_PORT=9000 (default 8080)
+```
+
+Auth is a fail-closed bearer token (`Authorization: Bearer <token>`) —
+the server refuses to start at all without `ISIC6201_API_TOKEN` set.
+Endpoints: `GET /` and `GET /health` (no auth); `POST /send`,
+`POST /advance-stage`, `POST /update-score`, and `GET /dashboard` (auth
+required). By default this runs against a fresh, in-memory
+`marketing.store/seed-db` with **no persistence across restarts** — see
+`docs/api.md` for the full endpoint reference, request/response shapes,
+curl examples, and honest-scope statement (single-process,
+single-tenant, no TLS termination, no rate limiting).
+
 ## Documentation
 
 - `docs/business-model.md` — the OSS open-business blueprint
 - `docs/DESIGN.md` — actor architecture (Japanese)
 - `docs/operator-guide.md` — fork/run/production checklist
+- `docs/api.md` — HTTP API reference (`src/marketing/http.clj`)
 - `docs/adr/0001-architecture.md` — the authoritative architecture record
 
 ## License
