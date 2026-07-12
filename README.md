@@ -196,6 +196,63 @@ stub standing in for the model API. See **[`docs/api.md`](docs/api.md)**'s
 "Real-model MarketingOps-LLM advisor" section for exactly what is/isn't
 proven.
 
+## Running via Docker
+
+`Dockerfile` is a real, working multi-stage build: a `eclipse-temurin:
+21-jdk-jammy` builder stage (clones the public `kotoba-lang/crm` and
+`kotoba-lang/langgraph` sibling repos this repo's `deps.edn` `:local/root`
+paths expect, then `clojure -P -M:serve` pre-fetches every dep — including
+`kotoba-lang/langchain`, resolved transitively via langgraph's pinned
+`:git/sha` — into `~/.m2`/`~/.gitlibs`/`.cpcache`) and a minimal
+`eclipse-temurin:21-jre-jammy` runtime stage (no JDK, no git, no Clojure
+CLI installer — just the pre-built caches, the source tree, and `curl`
+for the healthcheck), running as a non-root `isic6201` user (uid 10001).
+All secrets/config come from the container environment only — never
+baked into the image.
+
+```bash
+docker build -t cloud-itonami-isic-6201:local .
+
+mkdir -p /tmp/isic6201-data   # bind-mounted at /data for disk-durable state
+
+docker run -d --name isic6201 \
+  -p 8080:8080 \
+  -e ISIC6201_API_TOKEN=<your-token> \
+  -e ISIC6201_STORE_FILE=/data/db.edn \
+  -v /tmp/isic6201-data:/data \
+  cloud-itonami-isic-6201:local
+
+curl -s http://localhost:8080/health
+# {"status":"ok","store":"reachable"}
+
+curl -s "http://localhost:8080/dashboard?role=marketer" \
+  -H "Authorization: Bearer <your-token>"
+# {"lifecycle-funnel": {...}, "conversion-rates": {...}, ...}
+
+docker stop isic6201 && docker rm isic6201
+```
+
+This exact sequence (build → run with a test token and a bind-mounted
+`ISIC6201_STORE_FILE` → `curl /health` → `curl /dashboard` with and
+without the bearer token → confirm the snapshot landed on the host bind
+mount → stop/remove) was run end-to-end against a real `docker build`/
+`docker run` when this Dockerfile was added: `/health` returned
+`{"status":"ok","store":"reachable"}`, unauthenticated `/dashboard`
+returned `401`, authenticated `/dashboard` returned real aggregated
+demo-seed data, `docker exec ... id` confirmed the process runs as
+`uid=10001(isic6201)` (not root), and the bind-mounted `db.edn` held the
+seeded snapshot on the host after the container was removed.
+
+Optional env vars (see `docs/api.md` for the full list):
+`ISIC6201_HTTP_PORT` (default `8080`), `ISIC6201_MODEL_API_KEY` /
+`ISIC6201_MODEL_PROVIDER` / `ISIC6201_MODEL` / `ISIC6201_MODEL_URL` (real
+MarketingOps-LLM advisor instead of the sealed mock).
+
+`.github/workflows/ci.yml` also runs `docker build .` (build-only, no
+registry push) on every push/PR to catch Dockerfile breakage — see that
+file's scope note for why no deploy/registry-push step is included
+(needs credentials/infra decisions out of scope here).
+
 ## Documentation
 
 - `docs/business-model.md` — the OSS open-business blueprint

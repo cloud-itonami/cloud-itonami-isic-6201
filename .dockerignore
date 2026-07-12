@@ -1,0 +1,12 @@
+.git
+.gitignore
+.cpcache
+target
+*.class
+.github
+.claude
+*.md
+!README.md
+docs
+test
+.DS_Store

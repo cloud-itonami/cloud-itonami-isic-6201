@@ -88,6 +88,50 @@ ISIC6201_API_TOKEN=<your-token> clojure -M:serve
 # optional: ISIC6201_STORE_FILE=/path/to/db.edn -- see "Persistence" below
 ```
 
+### Running via Docker
+
+`Dockerfile` (repo root) packages this exact `-main` entry point into a
+container: an `eclipse-temurin:21-jdk-jammy` builder stage clones the
+public `kotoba-lang/crm`/`kotoba-lang/langgraph` sibling repos this
+repo's `deps.edn` `:local/root` paths expect and pre-fetches all deps
+(`clojure -P -M:serve`, including `kotoba-lang/langchain` via
+langgraph's pinned `:git/sha`), and a minimal `eclipse-temurin:
+21-jre-jammy` runtime stage runs `clojure -M:serve` as a non-root user
+(uid 10001) with only the pre-warmed caches + source tree + `curl`
+(for `HEALTHCHECK GET /health`) — no JDK, no git, no build tooling.
+Config is read from the container environment only, never baked in.
+
+```bash
+docker build -t cloud-itonami-isic-6201:local .
+
+mkdir -p /tmp/isic6201-data
+docker run -d --name isic6201 -p 8080:8080 \
+  -e ISIC6201_API_TOKEN=<your-token> \
+  -e ISIC6201_STORE_FILE=/data/db.edn \
+  -v /tmp/isic6201-data:/data \
+  cloud-itonami-isic-6201:local
+
+curl -s http://localhost:8080/health
+curl -s "http://localhost:8080/dashboard?role=marketer" \
+  -H "Authorization: Bearer <your-token>"
+
+docker stop isic6201 && docker rm isic6201
+```
+
+**Verified end-to-end** (real `docker build`/`docker run`, not just a
+written-but-untested Dockerfile): `GET /health` returned
+`{"status":"ok","store":"reachable"}`; `GET /dashboard` without a
+bearer token returned `401`; with the token it returned real aggregated
+dashboard data over the seeded demo dataset; `docker exec ... id`
+confirmed the process runs as `uid=10001(isic6201)`, not root; and the
+bind-mounted `ISIC6201_STORE_FILE` held the persisted snapshot on the
+host filesystem after the container was stopped and removed. See
+README.md's "Running via Docker" section for the same transcript.
+`.github/workflows/ci.yml` runs `docker build .` (build-only) on every
+push/PR — no `docker push`/registry/deploy step is included (out of
+scope here; needs credentials and an infra decision not available in
+this environment).
+
 If `$ISIC6201_STORE_FILE` is **unset**, `-main` starts the server against
 a fresh `marketing.store/seed-db` — the same small fictitious demo
 dataset `marketing.sim` uses (contacts `contact-100`..`contact-600`,
