@@ -2,6 +2,12 @@
 
 Shortest path from clone to a verified local dry-run for **ISIC 6201** (`cloud-itonami-isic-6201`).
 
+## Who this is for
+
+- **Operators** planning to fork and self-host a governed marketing-automation platform
+- **Developers** extending or auditing the Governor's compliance gates
+- **Compliance teams** reviewing how this system prevents unauthorized sends, double-emails, and fabricated scores
+
 ## Prerequisites
 
 - Clojure 1.12+ (`clojure --version`)

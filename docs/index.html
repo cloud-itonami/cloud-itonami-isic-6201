@@ -38,26 +38,26 @@
 </head>
 <body>
   <main class="container">
-    <h1>cloud-itonami-isic-6201</h1>
-    <div class="badge">ISIC 6201 · maturity unknown</div>
+    <h1>Governed Marketing Automation</h1>
+    <div class="badge">ISIC 6201 · Open Blueprint</div>
     <div class="pitch">
-      <p>Open Business Blueprint for ISIC Rev.4 6201: computer programming activities, narrowed to a marketing-automation SaaS platform business — the HubSpot Marketing Hub / Salesforce Marketing Cloud class of business — published as an OSS business that any qualified operator can fork, deploy, run, improve and sell.</p>
-      <p>Marketing campaign sends and lead lifecycle transitions move through a governed workflow: whether a contact may currently be contacted, whether a campaign has already been sent to that contact, whether a lead's lifecycle stage transition is a valid forward step, and whether a proposed lead score matches the engagement-history ground truth are all checked before anything commits. Built on this workspace's [langgraph](https://github.com/kotoba-lang/langgraph) StateGraph runtime and [kotoba-lang/crm](https://github.com/kotoba-lang/crm)'s technical commons — the same actor pattern as [cloud-itonami-isic-5820](https://github.com/cloud-itonami/cloud-itonami-isic-5820) (sales-pipeline/subscription-entitlement CRM, a distinct sibling business model — see &quot;Scope&quot; below) and [cloud-itonami-isic-6209](https://github.com/cloud-itonami/cloud-itonami-isic-6209).</p>
-      <p>&gt; Why an actor layer at all? A MarketingOps-LLM is great at &gt; normalizing incoming send/stage-advance/score-update requests and &gt; drafting proposals — but it has no notion of consent-authorization &gt; validity, whether a campaign has already been sent to a contact, &gt; lifecycle stage-sequence validity, or whether a proposed lead score &gt; actually matches the contact's engagement history. Letting it commit &gt; directly invites a commercial message reaching someone who revoked &gt; consent or already unsubscribed (a real CAN-SPAM/GDPR/CASL compliance &gt; failure, not a cosmetic one), a contact being spammed twice by the &gt; same campaign, a lifecycle stage being skipped to fabricate pipeline &gt; momentum, or a fabricated lead score reaching sales unnoticed. This &gt; project seals the MarketingOps-LLM into a single node and wraps it &gt; with an independent ConsentGovernor, a human review workflow, &gt; and an immutable audit ledger.</p>
+      <p><strong>The problem:</strong> Marketing automation platforms can send campaigns to revoked contacts, double-email the same person, skip validation steps, or inject fabricated lead scores—each a real compliance failure (CAN-SPAM, GDPR, CASL) or data corruption. An LLM advisor alone has no guardrails.</p>
+      <p><strong>The solution:</strong> An independent <code>ConsentGovernor</code> validates every proposed send, stage advance, and score update <em>before</em> commit. No unsafe operations leave this system. Self-hosted, forkable, auditable.</p>
+      <p><strong>Not:</strong> sales pipeline, customer support, or ad-buying agency. Marketing-side only (campaigns, lead scoring, lifecycle).</p>
     </div>
-    <p class="meta">Domain <code>operations</code> · Governor <code>governor</code> · License <code>AGPL-3.0-or-later</code></p>
+    <p class="meta">Domain <code>operations</code> · Governor <code>ConsentGovernor</code> · License <code>AGPL-3.0-or-later</code></p>
     <div class="cta">
-      <a class="primary" href="https://itonami.cloud/isco-1212/">Fork + self-host claim</a>
-      <a class="secondary" href="https://itonami.cloud/docs/go-live.md">Paid go-live path</a>
+      <a class="primary" href="https://itonami.cloud/isco-1212/">Claim free tenant</a>
+      <a class="secondary" href="https://itonami.cloud/docs/go-live.md">Go-live docs</a>
     </div>
     <ul class="links">
       <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6201">GitHub repository</a></li>
       <li><a href="./operator-quickstart.md">Operator quickstart</a></li>
       <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6201/blob/main/blueprint.edn">blueprint.edn</a></li>
-      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6201/blob/main/README.md">README</a></li>
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6201/blob/main/README.md">Full README</a></li>
     </ul>
     <footer>
-      <p>Open occupation blueprint — no invented usage or revenue metrics. Product face generated for impl-product maturity (Lane C).</p>
+      <p>Open occupation blueprint — no invented usage or revenue metrics. Governed, auditable, self-hosted.</p>
     </footer>
   </main>
 </body>
