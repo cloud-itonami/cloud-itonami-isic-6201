@@ -19,6 +19,10 @@
   ;; Port: $ISIC6201_HTTP_PORT (default 8080). Auth: $ISIC6201_API_TOKEN
   ;; MUST be set (fail-closed — see docs/api.md).
   :serve {:main-opts ["-m" "marketing.http"]}
+  ;; clojure -M:dev:render-html → build-time regenerate docs/samples/
+  ;; operator-console.html through the real marketing actor
+  ;; (marketing.render-html). Closes flagship checklist item 2 (ADR-2607189300).
+  :render-html {:main-opts ["-m" "marketing.render-html"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}

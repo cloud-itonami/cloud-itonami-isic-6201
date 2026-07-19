@@ -1,0 +1,133 @@
+(ns marketing.render-html
+  "Build-time HTML renderer for `docs/samples/operator-console.html`.
+
+  Closes flagship checklist item 2 (ADR-2607189300 at com-junkawasaki/root)
+  for cloud-itonami-isic-6201: the wave5 fleet demo-generation sweep covers
+  the 290-repo {facts,phase,sim,governor,operation,advisor,store} cluster
+  but 6201 has an http.clj layer (different shape), so its demo was deferred
+  -- this namespace is the build-time render entrypoint (same pattern as
+  isic-5820 / isic-6202).
+
+  Runs the SAME governed marketing scenario `marketing.sim` exercises
+  (op1 clean campaign send -> commit; op7 lead :lead->:mql -> commit;
+  op8 engagement-history-matching score update -> commit; op9 score update
+  disagreeing with engagement-history recompute -> escalate -> human-approve
+  -> commit) through the REAL actor (marketing.operation -> marketing.policy
+  governor -> marketing.store), then renders the marketing-manager dashboard
+  (lifecycle funnel + conversion rates + campaign rollup + lead-score
+  distribution).
+
+  No invented numbers, no timestamps -- byte-identical reruns against the
+  same fresh seed, commit-only-on-change.
+
+  Usage: `clojure -M:dev:render-html [out-file]`
+  (default `docs/samples/operator-console.html`)."
+  (:require [clojure.string :as str]
+            [marketing.store :as store]
+            [marketing.operation :as operation]
+            [marketing.dashboard :as dashboard]
+            [langgraph.graph :as g]))
+
+(def ^:private marketer-ctx {:actor-id "marketer-1" :actor-role :marketer :phase 3})
+(def ^:private mgr-ctx      {:actor-id "mgr-1" :actor-role :marketing-manager :phase 3})
+
+(defn- exec! [actor tid request ctx]
+  (g/run* actor {:request request :context ctx} {:thread-id tid}))
+
+(defn- approve! [actor tid]
+  (g/run* actor {:approval {:status :approved :by "manager-1"}}
+          {:thread-id tid :resume? true}))
+
+(defn run-demo!
+  "Runs a fresh seeded store through the governed scenario: op1 sends
+  camp-100->contact-100 (opted-in, commit); op7 advances contact-100
+  :lead->:mql (commit); op8 updates contact-500 score to 39 matching the
+  engagement-history recompute (commit); op9 updates contact-500 score to
+  90 disagreeing with the recompute -> escalate -> human-approve -> commit.
+  Returns the resulting store."
+  []
+  (let [db (store/seed-db)
+        actor (operation/build db)]
+    (exec! actor "op1" {:op :campaign/send-message :subject "contact-100"
+                        :campaign-id "camp-100" :contact-id "contact-100"}
+           marketer-ctx)
+    (exec! actor "op7" {:op :lead/advance-stage :subject "contact-100"
+                        :contact-id "contact-100" :to-stage :mql}
+           marketer-ctx)
+    (exec! actor "op8" {:op :lead/update-score :subject "contact-500"
+                        :contact-id "contact-500" :score 39}
+           marketer-ctx)
+    (let [r9 (exec! actor "op9" {:op :lead/update-score :subject "contact-500"
+                                 :contact-id "contact-500" :score 90}
+                    mgr-ctx)]
+      (when (= :interrupted (:status r9))
+        (approve! actor "op9")))
+    db))
+
+(defn- kv-rows [m]
+  (str/join "\n"
+            (for [[k v] (sort-by (fn [[k _]] (if (keyword? k) (name k) (str k))) m)]
+              (format "        <tr><td>%s</td><td class=\"num\">%s</td></tr>"
+                      (if (keyword? k) (name k) (str k))
+                      (cond (number? v) (str v)
+                            (map? v) (pr-str v)
+                            (vector? v) (pr-str v)
+                            :else (str v))))))
+
+(defn- conversion-rows [conversion-rates]
+  (str/join "\n"
+            (for [[[from to] rate] (sort-by (comp first first) conversion-rates)]
+              (format "        <tr><td>%s → %s</td><td class=\"num\">%s</td></tr>"
+                      (name from) (name to)
+                      (if (number? rate) (str (Math/round (* 100 (double rate))) "%") (or rate "—"))))))
+
+(defn render-html
+  "Renders the post-scenario marketing dashboard as a deterministic HTML
+  document (no timestamps). Byte-identical across reruns."
+  [db]
+  (let [d (dashboard/snapshot db {:actor-role :marketing-manager})
+        funnel (get-in d [:lifecycle-funnel :stage-counts])
+        conv (:conversion-rates d)
+        camp (:campaign-rollup d)
+        scores (:lead-score-distribution d)]
+    (format
+      (str "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n"
+           "<meta name=\"generator\" content=\"marketing.render-html (clojure -M:dev:render-html)\">\n"
+           "<title>cloud-itonami-isic-6201 — operator console (build-time generated)</title>\n"
+           "<style>body{font-family:system-ui,sans-serif;margin:2rem;max-width:900px}"
+           "h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:1.5rem}"
+           "table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px;text-align:left}"
+           ".num{text-align:right}.note{color:#666;font-size:0.85rem}</style></head><body>\n"
+           "<h1>cloud-itonami-isic-6201 — marketing operator console</h1>\n"
+           "<p class=\"note\">Build-time generated by <code>marketing.render-html</code> "
+           "(<code>clojure -M:dev:render-html</code>) running the governed op1/op7/op8/op9 "
+           "scenario through the real <code>marketing.operation</code>→<code>marketing.policy</code>→"
+           "<code>marketing.store</code> stack. Not a hand-pasted snapshot; regenerates "
+           "byte-identically. Marketing-manager dashboard (RBAC-authorized).</p>\n\n"
+           "<h2>Lifecycle funnel — stage counts</h2>\n<table><tr><th>stage</th><th>contacts</th></tr>\n%s\n</table>\n\n"
+           "<h2>Conversion rates</h2>\n<table><tr><th>transition</th><th>rate</th></tr>\n%s\n</table>\n\n"
+           "<h2>Campaign rollup</h2>\n<table><tr><th>metric</th><th>value</th></tr>\n%s\n</table>\n\n"
+           "<h2>Lead-score distribution</h2>\n<table><tr><th>bucket</th><th>value</th></tr>\n%s\n</table>\n"
+           "</body></html>\n")
+      (kv-rows funnel)
+      (conversion-rows conv)
+      (kv-rows camp)
+      (kv-rows scores))))
+
+(defn -main
+  "Runs the demo scenario + writes the rendered HTML to `out-file`
+  (default docs/samples/operator-console.html). Commit-only-on-change."
+  [& [out-file]]
+  (let [out (or out-file "docs/samples/operator-console.html")
+        db (run-demo!)
+        html (render-html db)
+        tmp (str out ".tmp")]
+    (clojure.java.io/make-parents out)
+    (spit tmp html)
+    (let [prev (try (slurp out) (catch Exception _ nil))]
+      (if (= prev html)
+        (println (str "unchanged: " out))
+        (do (clojure.java.io/copy (clojure.java.io/file tmp)
+                                  (clojure.java.io/file out))
+            (println (str "wrote: " out)))))
+    (clojure.java.io/delete-file tmp :silently)))
