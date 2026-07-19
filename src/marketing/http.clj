@@ -193,8 +193,9 @@
   One HTTP call = one fresh thread-id = one graph run. A `:commit`/
   `:hold` result is final. An `:escalate` result means the graph
   interrupted before `:request-approval` (human-in-the-loop) — there is
-  no HTTP endpoint yet to submit that approval/rejection (out of scope
-  for this first HTTP layer, see docs/api.md), so it's surfaced as 202
+  no HTTP route yet to resume that approval/rejection — submit the
+  decision via POST /approve with the returned thread-id (see
+  docs/api.md) — so it's surfaced as 202
   with the thread-id and reason rather than silently blocking or
   500ing. This is the SAME shape `lead-score-mismatch` escalations use
   (`:lead/update-score` is the only op that reaches this path today,
@@ -214,8 +215,8 @@
          :thread-id   thread-id
          :reason      (-> state :audit last :reason)
          :confidence  (-> state :verdict :confidence)
-         :note        (str "Escalated for human approval; this HTTP layer does not yet "
-                            "expose an approval/rejection endpoint (see docs/api.md).")})
+         :note        (str "Escalated for human approval; POST /approve with this "
+                            "thread-id and {\"decision\":\"approve\"|\"reject\"} to resume.")})
 
       ;; :done
       (case disposition
@@ -262,7 +263,71 @@
                :advance-stage  "/advance-stage"
                :update-score   "/update-score"
                :dashboard      "/dashboard"
+               :approve        "/approve"
                :api-docs       "docs/api.md"}})
+
+;; ───────────────────────── /approve ─────────────────────────
+
+(defn- approve-decision
+  "Resumes an INTERRUPTED graph run (any of /send, /advance-stage, or
+  /update-score returned 202 `escalated` with a `thread-id`) by feeding
+  the human decision back into the EXACT same actor graph (`actor`) via
+  `g/run*` with `:resume? true` — the same resume path `marketing.sim`'s
+  `-main` already exercises in-process. This function contains no
+  governance logic of its own; it only shapes the resumed result into an
+  HTTP response.
+
+  `thread-id` MUST be one a write endpoint returned as escalated for THIS
+  server process (interrupted threads live in the in-memory checkpointer
+  on the single `actor` instance built at server-start — see docs/api.md;
+  they do not survive a process restart). `decision` is :approve or
+  :reject; `by` is an optional approver id (defaults to `http-approver`).
+  :approve lets the interrupted transition proceed to its governed
+  :commit; :reject resumes with :rejected, which the governor turns into
+  a final :hold. A resumed run that re-escalates (multi-gate) returns 202
+  again with the new reason; resuming an unknown / already-final
+  thread-id returns 404."
+  [actor thread-id decision by]
+  (let [approval {:status (if (= decision :approve) :approved :rejected)
+                  :by     (or by "http-approver")}
+        res      (g/run* actor {:approval approval}
+                          {:thread-id thread-id :resume? true})
+        state    (:state res)]
+    (case (:status res)
+      :interrupted
+      (json-response 202
+        {:decision  "escalated"
+         :thread-id thread-id
+         :approval  (:status approval)
+         :reason    (-> state :audit last :reason)
+         :note      (str "Resumed run re-escalated (multi-gate); POST /approve "
+                         "again with this thread-id and the new decision.")})
+
+      :done
+      (let [disposition (:disposition state)]
+        (case disposition
+          :commit
+          (json-response 200
+            {:decision  "committed"
+             :thread-id thread-id
+             :approval  (:status approval)
+             :record    (:record state)})
+
+          :hold
+          (json-response 200
+            {:decision   "held"
+             :thread-id  thread-id
+             :approval   (:status approval)
+             :violations (-> state :verdict :violations)
+             :confidence (-> state :verdict :confidence)})
+
+          (json-response 500 {:error "unexpected disposition" :disposition disposition})))
+
+      ;; resume returned no resumable interrupted state (unknown / final thread-id)
+      (json-response 404
+        {:error     "thread not resumable"
+         :thread-id thread-id
+         :status    (:status res)}))))
 
 ;; ───────────────────────── handler ─────────────────────────
 
@@ -329,6 +394,34 @@
             (if (nil? role)
               (json-response 400 {:error "missing required query param: role"})
               (dashboard-response store role))))
+
+        (and (= :post request-method) (= "/approve" uri))
+        (if-not (authorized? req token)
+          (json-response 401 {:error "unauthorized"})
+          (let [body (read-body-json req)]
+            (cond
+              (= body ::parse-error)
+              (json-response 400 {:error "invalid JSON body"})
+
+              (not (map? body))
+              (json-response 400 {:error "body must be a JSON object"})
+
+              :else
+              (let [thread-id (:thread-id body)
+                    decision  (kw-val (:decision body))
+                    by        (:by body)]
+                (cond
+                  (str/blank? thread-id)
+                  (json-response 400 {:error "missing required field: thread-id"})
+
+                  (nil? decision)
+                  (json-response 400 {:error "missing required field: decision"})
+
+                  (not (#{:approve :reject} decision))
+                  (json-response 400 {:error "decision must be \"approve\" or \"reject\""})
+
+                  :else
+                  (approve-decision actor thread-id decision by))))))
 
         :else
         (json-response 404 {:error "not found"}))

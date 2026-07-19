@@ -216,3 +216,64 @@
     (is (contains? json :conversion-rates))
     (is (contains? json :campaign-rollup))
     (is (contains? json :lead-score-distribution))))
+
+;; ───────────────────────── /approve (escalation resume) ─────────────────────────
+
+;; op9 from marketing.sim: contact-500 -> 90 (disagrees with engagement-history
+;; recompute) ALWAYS escalates for human review, the deterministic case for the
+;; /update-score -> 202 escalated -> /approve resume round-trip end-to-end.
+(def ^:private mismatch-body
+  (json/write-str {:contact-id "contact-500" :score 90 :context manager-context}))
+
+(deftest propose-mismatch-escalates-with-thread-id
+  (testing "update-score mismatch -> 202 escalated with a thread-id (precondition for /approve)"
+    (let [{:keys [status json]} (json-req! :post "/update-score" {:body mismatch-body} test-token)]
+      (is (= 202 status))
+      (is (= "escalated" (:decision json)))
+      (is (string? (:thread-id json))))))
+
+(deftest approve-resumes-an-escalated-thread-to-a-final-disposition
+  (testing "POST /approve with the escalated thread-id resumes the graph to :done"
+    (let [{prop-json :json} (json-req! :post "/update-score" {:body mismatch-body} test-token)
+          thread-id (:thread-id prop-json)]
+      (is (string? thread-id))
+      (let [{:keys [status json]}
+            (json-req! :post "/approve"
+                       {:body (json/write-str {:thread-id thread-id
+                                                :decision  "approve"
+                                                :by        "test-approver"})}
+                       test-token)]
+        (is (= 200 status))
+        (is (contains? #{"committed" "held"} (:decision json)))
+        (is (= thread-id (:thread-id json)))
+        (is (= "approved" (:approval json)))))))
+
+(deftest reject-resumes-an-escalated-thread-to-held
+  (testing "POST /approve with decision \"reject\" -> governor holds"
+    (let [{prop-json :json} (json-req! :post "/update-score" {:body mismatch-body} test-token)
+          thread-id (:thread-id prop-json)]
+      (is (string? thread-id))
+      (let [{:keys [status json]}
+            (json-req! :post "/approve"
+                       {:body (json/write-str {:thread-id thread-id :decision "reject"})}
+                       test-token)]
+        (is (= 200 status))
+        (is (= "held" (:decision json)))
+        (is (= "rejected" (:approval json)))))))
+
+(deftest approve-rejects-malformed-bodies
+  (testing "decision must be approve|reject; thread-id must be present"
+    (let [{s1 :status} (json-req! :post "/approve"
+                                  {:body (json/write-str {:thread-id "x" :decision "maybe"})}
+                                  test-token)]
+      (is (= 400 s1)))
+    (let [{s2 :status} (json-req! :post "/approve"
+                                  {:body (json/write-str {:decision "approve"})}
+                                  test-token)]
+      (is (= 400 s2)))))
+
+(deftest approve-without-auth-token-is-unauthorized
+  (let [{:keys [status json]} (json-req! :post "/approve"
+                                         {:body (json/write-str {:thread-id "x" :decision "approve"})})]
+    (is (= 401 status))
+    (is (= "unauthorized" (:error json)))))
