@@ -32,10 +32,9 @@
   explicitly out of scope for R0 (see README / docs/business-model.md).
 
   The ledger stays append-only on every backend."
-  (:require #?(:clj  [clojure.edn :as edn]
-               :cljs [cljs.reader :as edn])
-            [clojure.string :as str]
-            [langchain.db :as d]))
+  (:require [clojure.string :as str]
+            [langchain.db :as d]
+            [langchain-store.core :as ls]))
 
 (defprotocol Store
   (contact [s id])
@@ -125,9 +124,6 @@
    :engagement/contact-id {:db/unique :db.unique/identity}
    :ledger/seq          {:db/unique :db.unique/identity}})
 
-(defn- enc [v] (pr-str v))
-(defn- dec* [s] (when s (edn/read-string s)))
-
 (defn- contact->tx [{:keys [id name consent-status unsubscribed? lifecycle-stage lead-score]}]
   {:contact/id id :contact/name name
    :contact/consent-status consent-status
@@ -157,7 +153,7 @@
 (def ^:private campaign-pull [:campaign/id :campaign/name :campaign/channel])
 
 (defn- send->tx [campaign-id contact-id sent?]
-  {:send/key (enc [campaign-id contact-id]) :send/sent? (boolean sent?)})
+  {:send/key (ls/enc [campaign-id contact-id]) :send/sent? (boolean sent?)})
 
 (defn- pull->send [m]
   (when (:send/key m)
@@ -166,11 +162,11 @@
 (def ^:private send-pull [:send/key :send/sent?])
 
 (defn- engagement->tx [contact-id events]
-  {:engagement/contact-id contact-id :engagement/events (enc events)})
+  {:engagement/contact-id contact-id :engagement/events (ls/enc events)})
 
 (defn- pull->engagement [m]
   (if (:engagement/contact-id m)
-    (or (dec* (:engagement/events m)) [])
+    (or (ls/dec* (:engagement/events m)) [])
     []))
 
 (def ^:private engagement-pull [:engagement/contact-id :engagement/events])
@@ -188,13 +184,13 @@
          (map #(pull->campaign (d/pull (d/db conn) campaign-pull [:campaign/id %])))
          (sort-by :id)))
   (send-record [_ campaign-id contact-id]
-    (pull->send (d/pull (d/db conn) send-pull [:send/key (enc [campaign-id contact-id])])))
+    (pull->send (d/pull (d/db conn) send-pull [:send/key (ls/enc [campaign-id contact-id])])))
   (engagement-history [_ contact-id]
     (pull->engagement (d/pull (d/db conn) engagement-pull [:engagement/contact-id contact-id])))
   (ledger [_]
     (->> (d/q '[:find ?s ?f :where [?e :ledger/seq ?s] [?e :ledger/fact ?f]] (d/db conn))
          (sort-by first)
-         (mapv (comp dec* second))))
+         (mapv (comp ls/dec* second))))
   (commit-record! [s {:keys [effect value]}]
     (case effect
       :send-record-upsert
@@ -208,7 +204,7 @@
       nil)
     s)
   (append-ledger! [s fact]
-    (d/transact! conn [{:ledger/seq (count (ledger s)) :ledger/fact (enc fact)}])
+    (d/transact! conn [{:ledger/seq (count (ledger s)) :ledger/fact (ls/enc fact)}])
     fact)
   (with-contacts [s cs]
     (when (seq cs) (d/transact! conn (mapv contact->tx (vals cs)))) s)
