@@ -1,6 +1,8 @@
 {:paths ["src"]
  :deps {io.github.kotoba-lang/langgraph
         {:local/root "../../kotoba-lang/langgraph"}
+        io.github.kotoba-lang/langchain-store
+        {:local/root "../../kotoba-lang/langchain-store"}
         io.github.kotoba-lang/crm
         {:local/root "../../kotoba-lang/crm"}
         ;; HTTP service layer (src/marketing/http.clj, JVM-only compat
