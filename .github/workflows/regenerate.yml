@@ -43,6 +43,7 @@ jobs:
           git clone --depth 1 https://github.com/kotoba-lang/crm.git ../../kotoba-lang/crm
           git clone --depth 1 https://github.com/kotoba-lang/langgraph.git ../../kotoba-lang/langgraph
           git clone --depth 1 https://github.com/kotoba-lang/langchain.git ../../kotoba-lang/langchain
+          git clone --depth 1 https://github.com/kotoba-lang/langchain-store.git ../../kotoba-lang/langchain-store
       - name: Regenerate operator-console.html
         run: clojure -M:dev:render-html
       - name: Commit only on change
