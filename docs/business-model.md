@@ -52,6 +52,59 @@ this fleet apply to their own domain.
 - Certification/audit fee for itonami.cloud operator certification
 - Optional managed-hosting fee for operators who do not self-host
 
+| Package | Customer | Price shape |
+|---|---|---|
+| Self-host | operator runs their own instance | AGPL-3.0-or-later, no fee |
+| Managed Starter | one tenant, SMB/mid-market B2B marketing team (3–5 seats, ~10,000 contacts) | ¥35,000/月 flat |
+
+**Market-anchored (2026-08-10)**: benchmarked against 5 real
+marketing-automation products sold into the Japanese market. **4 of the 5
+publish real numbers** — a markedly higher disclosure rate than the
+customer-service or market-data categories, and the domestic vendors are the
+transparent ones. **SATORI**: 初期費用「300,000円（税別）」+
+「148,000円/月（年間契約）（税別）」
+(<https://satori.marketing/fee/>). **List Finder**: フリー ¥0、ライト 初期
+¥100,000 + 月額 ¥45,000、スタンダード 月額 ¥69,000、プレミアム 月額 ¥92,000
+(<https://promote.list-finder.jp/price/>). **Kairos3 Marketing** publishes
+floors only: スタンダード「20,000 円/月〜」、プロ「155,000（税別）円〜」, with
+「別途、初期費用が発生します」 and the breakdown behind a document request
+(<https://www.kairosmarketing.net/kairos3/pricing/ma>). **HubSpot Marketing
+Hub**: Starter「最低利用料金：￥840／月／シート」(1,000 marketing contacts),
+Professional「￥96,000／月」(3 core seats + 2,000 contacts), Enterprise
+「￥432,000／月」(5 seats + 10,000 contacts)
+(<https://www.hubspot.jp/pricing/marketing>). **Adobe Marketo Engage**
+publishes **nothing** — its four packages (Growth/Select/Prime/Ultimate) are
+quoted per database lead count on request only.
+
+For the assumed customer (one tenant, a B2B SMB/mid-market marketing team at
+3–5 seats and roughly 10,000 contacts) the measured band is ¥20,000/月
+(Kairos3 Standard's published floor, which in practice rises with usage at
+that contact count) to ¥148,000/月 (SATORI), with the cheapest *realistic*
+full-suite comparable at that size being List Finder ライト at ¥45,000/月 and
+HubSpot Professional at ¥96,000/月. **¥35,000/月 sits low in that band, below
+every full-suite comparable priced for ~10,000 contacts.** That placement is
+deliberate: this actor ships no email delivery engine, no form/landing-page
+builder, no web tracking and no scenario builder — it sells the consent,
+double-send, stage-sequence and lead-score-integrity **gate** and the
+append-only ledger, not a marketing suite. It is priced above the band's
+nominal floor because a managed tenant carries a human review queue, which is
+per-tenant labour that a self-serve SaaS marginal-cost structure does not
+explain. What justifies charging anything at all next to a ¥20,000 full tool
+is the one property none of the five comparators has structurally: consent
+revocation, unsubscribe suppression, campaign double-send and lifecycle
+stage-skipping are enforced by an independent ConsentGovernor that cannot be
+switched off in configuration, where every comparator routes the same
+CAN-SPAM/GDPR/CASL concerns through configurable-but-optional workflow rules.
+
+**Subscribe (2026-08-10)**: a live Stripe Payment Link for the Managed
+Starter tier (¥35,000/月 flat) is available now —
+[**subscribe to Managed Marketing Ops — Starter**](https://buy.stripe.com/fZu7sM86z8tqe9O3HIeEo0c).
+This is a no-code Stripe-hosted checkout; nothing in this repo's actor code
+changed. After subscribing, contact gftdcojp to arrange managed-tenant setup
+(manual fulfillment today, no automated onboarding yet). **No marketing team
+or operator has claimed or subscribed to this tier yet — this is a live,
+working checkout with zero paid tenants, not a claim of existing revenue.**
+
 ## Honest scope (R0)
 
 - Marketing-campaign send governance and lead-lifecycle (5-stage linear
