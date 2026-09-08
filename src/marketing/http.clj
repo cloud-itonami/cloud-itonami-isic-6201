@@ -54,7 +54,7 @@
   the same fail-visible discipline `warn-ephemeral-store!` already
   established for storage. Mirrors `cloud-itonami-isic-5820`'s `crm.http/
   resolve-advisor!`."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.data.json :as json]
             [org.httpkit.server :as httpkit]
             [ring.middleware.params :refer [wrap-params]]

@@ -32,7 +32,7 @@
   explicitly out of scope for R0 (see README / docs/business-model.md).
 
   The ledger stays append-only on every backend."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [langchain.db :as d]
             [langchain-store.core :as ls]))
 

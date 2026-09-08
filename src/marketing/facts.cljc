@@ -39,7 +39,7 @@
        and no quoted text, so nothing here was independently checkable;
        `consent-regimes` closes that, and adds Japan (an opt-in regime that
        CAN-SPAM's opt-out shape does not cover)."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def consent-statuses
   "A contact's consent state. CAN-SPAM/GDPR/CASL do not recognize a
