@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 #
 # cloud-itonami-isic-6201 (marketing-automation governed actor) container
-# image. Runs the real `marketing.http` service (`clojure -M:serve`) — see
+# image. Runs the real `marketing.http` service (`kbb -M:serve`) — see
 # `docs/api.md` for the endpoint contract and `README.md`'s "Running via
 # Docker" section for the exact verified commands.
 #
 # This repo has no compiled-artifact (uberjar) build step today — it runs
-# from source via the Clojure CLI, same as `clojure -M:serve` documented in
+# from source via the Clojure CLI, same as `kbb -M:serve` documented in
 # README.md/docs/api.md. So both stages need `java` + the `clojure` CLI +
 # the source tree; the builder stage's only job is to (a) fetch this repo's
 # two LOCAL sibling deps (`kotoba-lang/crm`, `kotoba-lang/langgraph` — this
@@ -58,7 +58,7 @@ RUN git clone --depth 1 https://github.com/kotoba-lang/crm.git kotoba-lang/crm \
 WORKDIR /app/orgs/cloud-itonami/cloud-itonami-isic-6201
 COPY . .
 
-# Pre-fetch every dep `clojure -M:serve` needs (base deps.edn: http-kit,
+# Pre-fetch every dep `kbb -M:serve` needs (base deps.edn: http-kit,
 # ring-core, data.json, crm + langgraph via local/root, langchain
 # transitively via langgraph's pinned :git/sha) into this stage's
 # ~/.m2 + ~/.gitlibs + ~/.clojure/.cpcache, which are copied verbatim
@@ -86,7 +86,7 @@ COPY --from=builder /usr/local/lib/clojure /usr/local/lib/clojure
 COPY --from=builder /usr/local/bin/clojure /usr/local/bin/clojure
 
 # Pre-warmed dependency caches (jars + git deps + resolved classpath),
-# so `clojure -M:serve` starts fully offline.
+# so `kbb -M:serve` starts fully offline.
 COPY --from=builder --chown=isic6201:isic6201 /root/.m2 /home/isic6201/.m2
 COPY --from=builder --chown=isic6201:isic6201 /root/.gitlibs /home/isic6201/.gitlibs
 COPY --from=builder --chown=isic6201:isic6201 \
@@ -129,4 +129,4 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
   CMD curl -fs "http://127.0.0.1:${ISIC6201_HTTP_PORT}/health" || exit 1
 
-ENTRYPOINT ["clojure", "-M:serve"]
+ENTRYPOINT ["kbb", "-M:serve"]

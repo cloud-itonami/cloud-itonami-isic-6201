@@ -127,8 +127,8 @@ the full RBAC-gating rationale.
 ## Run
 
 ```bash
-clojure -M:dev:test
-clojure -M:dev:run
+kbb -M:dev:test
+kbb -M:dev:run
 ```
 
 ## Running as a service
@@ -139,7 +139,7 @@ actor graph — a thin JSON adapter, not a reimplementation of any
 governance logic (mirrors `cloud-itonami-isic-5820`'s `src/crm/http.clj`).
 
 ```bash
-ISIC6201_API_TOKEN=<your-token> clojure -M:serve
+ISIC6201_API_TOKEN=<your-token> kbb -M:serve
 # optional: ISIC6201_HTTP_PORT=9000 (default 8080)
 # optional: ISIC6201_STORE_FILE=/path/to/db.edn -- disk-durable store (see docs/api.md's Persistence section)
 ```
@@ -183,7 +183,7 @@ set `ISIC6201_MODEL_API_KEY` and the server uses it instead of the mock
 `cloud-itonami-isic-5820`'s equivalent `ISIC5820_MODEL_API_KEY` feature.
 
 ```bash
-ISIC6201_API_TOKEN=<token> ISIC6201_MODEL_API_KEY=<real key> clojure -M:serve
+ISIC6201_API_TOKEN=<token> ISIC6201_MODEL_API_KEY=<real key> kbb -M:serve
 # optional: ISIC6201_MODEL_PROVIDER=openai|anthropic|openclaw (default openai)
 # optional: ISIC6201_MODEL_URL (required for openclaw), ISIC6201_MODEL
 ```
