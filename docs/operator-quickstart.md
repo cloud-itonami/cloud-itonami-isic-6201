@@ -26,7 +26,7 @@ cd cloud-itonami-isic-6201
 ## 2. Run tests
 
 ```bash
-clojure -M:test
+kbb -M:test
 ```
 
 Expect green if maturity is `unknown`. Fix failures before operating.

@@ -15,7 +15,7 @@
     op9  engagement history と乖離する lead-score 更新(contact-500 → 90)  → escalate → approve → commit
     op10 権限のない role からの送信提案                                   → rbac REJECT → hold
 
-  Run: clojure -M:dev:run"
+  Run: kbb -M:dev:run"
   (:require [langgraph.graph :as g]
             [marketing.store :as store]
             [marketing.operation :as op]

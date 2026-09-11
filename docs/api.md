@@ -4,7 +4,7 @@ This is the first HTTP service layer over the `cloud-itonami-isic-6201`
 actor. It is a **thin adapter**: it does not reimplement any governance
 logic. Every governed decision is produced by the exact same
 `marketing.operation`/`marketing.policy`/`marketing.dashboard` code the
-library entry points (`clojure -M:dev:run`, the test suite) already use.
+library entry points (`kbb -M:dev:run`, the test suite) already use.
 It mirrors `cloud-itonami-isic-5820`'s `src/crm/http.clj` (same
 http-kit/ring-core/data.json dependency choices, same fail-closed
 bearer-token auth design, same namespaced-keyword JSON handling
@@ -27,7 +27,7 @@ stub. It is also **not yet production-hardened**:
 - **No request logging/observability** beyond whatever the operator adds
   externally (this file adds none beyond what `httpkit`/the JVM already
   emit on stdout/stderr).
-- **`clojure -M:serve` (`marketing.http/-main`) is disk-durable only if
+- **`kbb -M:serve` (`marketing.http/-main`) is disk-durable only if
   you set `$ISIC6201_STORE_FILE`.** If unset, it falls back to a fresh,
   in-memory `marketing.store/seed-db` and now prints a stderr WARNING
   every time it does so — there is no silent ephemeral default. See
@@ -64,7 +64,7 @@ The token is whatever value the server was started with — see
 
 - `marketing.http/start-server!` throws (refuses to start) if given a
   nil/blank token.
-- `clojure -M:serve` (`marketing.http/-main`) reads
+- `kbb -M:serve` (`marketing.http/-main`) reads
   `$ISIC6201_API_TOKEN` at startup; if it is unset or blank, it prints a
   fatal error to stderr and exits `1` **without starting the server at
   all**. There is no "runs with auth disabled" fallback anywhere in this
@@ -83,7 +83,7 @@ There is no built-in default/fallback token anywhere in `marketing.http`
 ## Running the server
 
 ```bash
-ISIC6201_API_TOKEN=<your-token> clojure -M:serve
+ISIC6201_API_TOKEN=<your-token> kbb -M:serve
 # optional: ISIC6201_HTTP_PORT=9000 (default 8080)
 # optional: ISIC6201_STORE_FILE=/path/to/db.edn -- see "Persistence" below
 ```
@@ -96,7 +96,7 @@ public `kotoba-lang/crm`/`kotoba-lang/langgraph` sibling repos this
 repo's `deps.edn` `:local/root` paths expect and pre-fetches all deps
 (`clojure -P -M:serve`, including `kotoba-lang/langchain` via
 langgraph's pinned `:git/sha`), and a minimal `eclipse-temurin:
-21-jre-jammy` runtime stage runs `clojure -M:serve` as a non-root user
+21-jre-jammy` runtime stage runs `kbb -M:serve` as a non-root user
 (uid 10001) with only the pre-warmed caches + source tree + `curl`
 (for `HEALTHCHECK GET /health`) — no JDK, no git, no build tooling.
 Config is read from the container environment only, never baked in.
@@ -151,7 +151,7 @@ silent/default path into that mode.
   so a crash mid-write can't leave a truncated snapshot), and loaded
   back from that path the next time the process starts. **This is
   disk-durable and has been verified end-to-end**: a real
-  `clojure -M:serve` process was started against a temp
+  `kbb -M:serve` process was started against a temp
   `ISIC6201_STORE_FILE`, a real `POST /advance-stage` committed
   `contact-100`'s lifecycle stage `:lead` → `:mql` over real HTTP, the
   process was killed (`kill -9`, not a graceful shutdown), restarted
@@ -436,7 +436,7 @@ ISIC6201_API_TOKEN=<token> \
 ISIC6201_MODEL_API_KEY=<real key> \
 ISIC6201_MODEL_PROVIDER=openai \
 ISIC6201_MODEL=gpt-4o-mini \
-  clojure -M:serve
+  kbb -M:serve
 ```
 
 ### Startup log / `preflight`

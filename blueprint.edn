@@ -19,5 +19,5 @@
   pattern as cloud-itonami-isic-5820. A real HTTP service
   (marketing.http, fail-closed on missing ISIC6201_API_TOKEN) exposes
   the governed operations. 76 tests / 249 assertions green
-  (`clojure -M:dev:test`), demo runnable end-to-end
-  (`clojure -M:dev:run`)."}
+  (`kbb -M:dev:test`), demo runnable end-to-end
+  (`kbb -M:dev:run`)."}
