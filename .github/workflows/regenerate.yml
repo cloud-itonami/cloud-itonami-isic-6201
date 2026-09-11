@@ -6,7 +6,7 @@
 # com-junkawasaki/root) for cloud-itonami-isic-6201: the wave5 fleet
 # demo-generation sweep covers the 290-repo cluster but 6201 has an http.clj
 # layer (different shape), so its demo was deferred -- this workflow +
-# src/marketing/render_html.clj are that entrypoint (same pattern as
+# src/marketing/render_html.cljk are that entrypoint (same pattern as
 # isic-5820 / isic-6202).
 #
 # JVM Clojure (clojure -M:dev:render-html), not nbb -- marketing.* + its

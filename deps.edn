@@ -13,7 +13,7 @@ io.github.kotoba-lang/langgraph
         {:local/root "../../kotoba-lang/langchain-store"}
         io.github.kotoba-lang/crm
         {:local/root "../../kotoba-lang/crm"}
-        ;; HTTP service layer (src/marketing/http.clj, JVM-only compat
+        ;; HTTP service layer (src/marketing/http.cljk, JVM-only compat
         ;; glue — see its ns docstring for why this is not a .cljc
         ;; violation). Same versions as cloud-itonami-isic-5820's
         ;; src/crm/http.clj.
@@ -25,7 +25,7 @@ io.github.kotoba-lang/langgraph
         {io.github.kotoba-lang/langchain
          {:local/root "../../kotoba-lang/langchain"}}}
   :run {:main-opts ["-m" "marketing.sim"]}
-  ;; clojure -M:serve → starts the real HTTP service (src/marketing/http.clj).
+  ;; clojure -M:serve → starts the real HTTP service (src/marketing/http.cljk).
   ;; Port: $ISIC6201_HTTP_PORT (default 8080). Auth: $ISIC6201_API_TOKEN
   ;; MUST be set (fail-closed — see docs/api.md).
   :serve {:main-opts ["-m" "marketing.http"]}

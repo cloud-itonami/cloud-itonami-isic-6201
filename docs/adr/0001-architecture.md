@@ -76,7 +76,7 @@ customer-service 系 sibling actor が同じロジックを再導出せず再利
 - (+) `kotoba-lang/crm` の `kotoba.crm.leadscore` は marketing 系
   sibling actor が再利用できる最初の lead-scoring 技術commons。
 - (+) `MemStore` ‖ `DatomicStore` parity は
-  `test/marketing/store_contract_test.clj` で証明。
+  `test/marketing/store_contract_test.cljk` で証明。
 - (+) 7310(広告代理店)・5820(sales/subscription CRM)との業種区別を
   README/business-model.md に明記。
 - (-) R0 は3consent状態のみ、線形5-stage lifecycle(+3 exit)のみ
@@ -110,12 +110,12 @@ customer-service 系 sibling actor が同じロジックを再導出せず再利
 - `kotoba-lang/industry` `resources/kotoba/industry/registry.edn`
   (fleet-wide maturity registry)
 
-## Addendum(2026-07-13): `src/marketing/llm_realmodel.clj` — 実モデル呼び出し
+## Addendum(2026-07-13): `src/marketing/llm_realmodel.cljk` — 実モデル呼び出し
 adapter(honest gap 解消、ただし実呼び出し自体は未検証)
 
 ### 課題
 
-`src/marketing/llm.cljc` の MarketingOps-LLM advisor は SEALED/決定論的な
+`src/marketing/llm.cljk` の MarketingOps-LLM advisor は SEALED/決定論的な
 mock(`marketing.llm/mock-advisor`/`marketing.llm/infer`)であり、実際の
 言語モデルを一切呼ばない。これは本番運用へ向けた既知の gap であり、後で
 operator が実クレデンシャルを与えたときに actor を実モデルへ向けられる
@@ -133,7 +133,7 @@ operator が実クレデンシャルを与えたときに actor を実モデル�
 `cloud-itonami-isic-5820` の `crm.llm-realmodel` が既に確立していた
 `{ITO,ISIC5820}_MODEL_PROVIDER`/`_URL`/`_MODEL`/`_MODEL_API_KEY` という
 env-var 駆動の convention をそのまま踏襲し(非互換な新規 shape を発明
-しない)、`ISIC6201_`-prefix 版として `src/marketing/llm_realmodel.clj`
+しない)、`ISIC6201_`-prefix 版として `src/marketing/llm_realmodel.cljk`
 (JVM-only、`marketing.http`/`marketing.file-store` と同じ理由——実 HTTP
 I/O は kotoba-wasm/clojurewasm/cljs/nbb 層に portable primitive が無い
 インフラ glue)に実装した。
@@ -166,7 +166,7 @@ mock(`marketing.operation/build`自身の既定と同一)——起動時に選�
 - ✅ `preflight` の missing/present 判定ロジック——provider 別
   (openai/anthropic/openclaw)・url/key の有無・unknown provider・
   blank env value の全パターンをクレデンシャル無しで検証
-  (`test/marketing/llm_realmodel_test.clj`)。
+  (`test/marketing/llm_realmodel_test.cljk`)。
 - ✅ 実際に送信する HTTP リクエストの wire shape(method・bearer
   header・JSON body の model/messages フィールド)と、レスポンス
   parse——ただし相手は**本物の実モデル API ではなく、この build 内で

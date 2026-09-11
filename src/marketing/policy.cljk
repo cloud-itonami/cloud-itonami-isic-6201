@@ -74,7 +74,7 @@
 
 (def confidence-floor 0.6)
 
-;; `:marketing/view-dashboard` (added alongside `src/marketing/dashboard.cljc`)
+;; `:marketing/view-dashboard` (added alongside `src/marketing/dashboard.cljk`)
 ;; is a READ-only entitlement, not a write op routed through the
 ;; MarketingOps-LLM -> ConsentGovernor -> commit pipeline (there is no
 ;; proposal to censor for a deterministic aggregate rollup). It is checked
