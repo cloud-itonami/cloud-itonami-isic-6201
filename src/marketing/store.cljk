@@ -10,7 +10,7 @@
                        kotoba-server pod.
 
   Both implement the same protocol and pass the same contract
-  (test/marketing/store_contract_test.clj) — the actor, the
+  (test/marketing/store_contract_test.cljk) — the actor, the
   ConsentGovernor and the audit ledger never know which SSoT they run
   on.
 

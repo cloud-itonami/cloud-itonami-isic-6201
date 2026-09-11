@@ -22,7 +22,7 @@ sales/subscription 側)の sibling — 同じ `kotoba-lang/crm` 技術commonsを
 | lifecycle stage をスキップして進行を確定 | パイプライン整合性の空洞化 |
 | engagement history と乖離した lead score を確定 | sales への誤ったシグナル伝播 |
 
-## 2. OperationActor(`src/marketing/operation.cljc`)
+## 2. OperationActor(`src/marketing/operation.cljk`)
 
 ```
 intake → advise → govern → decide ─┬─ commit
@@ -30,7 +30,7 @@ intake → advise → govern → decide ─┬─ commit
                                    └─ hold
 ```
 
-## 3. ConsentGovernor(`src/marketing/policy.cljc`)
+## 3. ConsentGovernor(`src/marketing/policy.cljk`)
 
 優先順位(HARD は人間承認でも上書き不可):
 
@@ -52,19 +52,19 @@ intake → advise → govern → decide ─┬─ commit
    (5820 の revenue-mismatch-imminent と同じ「片側を recompute して
    比較」ファミリー)。
 
-## 4. SSoT(`src/marketing/store.cljc`)
+## 4. SSoT(`src/marketing/store.cljk`)
 
 contacts(consent-status/unsubscribed?/lifecycle-stage/lead-score)・
 campaigns(name/channel)・sends([campaign-id contact-id] → 専用
 `:sent?` boolean)・engagement history(contact-id → event 列、
 `kotoba.crm.leadscore` recompute 用)・append-only ledger。
 
-## 5. R0(`src/marketing/facts.cljc`)
+## 5. R0(`src/marketing/facts.cljk`)
 
 3状態 consent カタログ(opted-in/opted-out/expired) + 独立
 unsubscribed? フラグ + 5-stage 線形 lead lifecycle(+3 exit stages)。
 
-## 6. Phase 0→3(`src/marketing/phase.cljc`)
+## 6. Phase 0→3(`src/marketing/phase.cljk`)
 
 `default-phase` = 1(保守的、5820 と同じ規約)。phase 0 はこの actor に
 disclosure 相当の read op が無いため全 write を hold する最も保守的な
@@ -92,7 +92,7 @@ op が存在しない(send/stage-advance/score-update の3op のみ)ため、
 — 未使用のコードパスを追加するより、必要になった時点で明示的に設計する
 方針(honesty over coverage)。
 
-## 9. Dashboard(`src/marketing/dashboard.cljc`)— 最初の aggregate-view
+## 9. Dashboard(`src/marketing/dashboard.cljk`)— 最初の aggregate-view
 
 上記 §8 の「disclosure op が無い」は今も真だが、それとは別の種類の read
 capability として `marketing.dashboard` を追加した: **単一レコードの

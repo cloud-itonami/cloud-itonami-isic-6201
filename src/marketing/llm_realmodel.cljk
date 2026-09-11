@@ -65,7 +65,7 @@
   in (checked: no ANTHROPIC_API_KEY/OPENAI_API_KEY/etc. in env) — so a
   real end-to-end call through `real-advisor` to an actual model API has
   NEVER been exercised. What IS verified (see
-  `test/marketing/llm_realmodel_test.clj`): `preflight`'s missing/present
+  `test/marketing/llm_realmodel_test.cljk`): `preflight`'s missing/present
   reporting across every permutation, and the exact JSON request/response
   shape this adapter sends/parses against a LOCAL http-kit stub server
   standing in for \"the model API\" (proves the adapter builds a
@@ -179,7 +179,7 @@
   "Builds a `langchain.model/ChatModel` for a REAL model API from
   `ISIC6201_MODEL_*` env vars (or explicit `opts` overrides, same keys as
   `model-config`, plus `:http-fn` to inject a stub for testing — see
-  `test/marketing/llm_realmodel_test.clj`). Delegates the actual request/
+  `test/marketing/llm_realmodel_test.cljk`). Delegates the actual request/
   response wire shape entirely to `langchain.model/anthropic-model`/
   `openai-model` (both already generic, already tested in `kotoba-lang/
   langchain`) — this function only resolves config and picks which of

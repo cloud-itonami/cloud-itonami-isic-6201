@@ -1,4 +1,4 @@
-# HTTP API (`src/marketing/http.clj`)
+# HTTP API (`src/marketing/http.cljk`)
 
 This is the first HTTP service layer over the `cloud-itonami-isic-6201`
 actor. It is a **thin adapter**: it does not reimplement any governance
@@ -184,7 +184,7 @@ implemented in this repo (checked directly, not assumed by analogy to
 **in-process** EAV emulation — see that ns's docstring) — there is no
 connection URI, no socket, no file, nothing that outlives the JVM heap.
 It is Datomic-API-*shaped* (which is what makes
-`test/marketing/store_contract_test.clj`'s `MemStore ≡ DatomicStore`
+`test/marketing/store_contract_test.cljk`'s `MemStore ≡ DatomicStore`
 parity test meaningful for a *future* backend swap), not
 Datomic-*backed*. As shipped, selecting `DatomicStore` would be exactly
 as ephemeral as `seed-db` — just with a name that implies otherwise —
@@ -374,7 +374,7 @@ curl -s "http://localhost:8080/dashboard?role=guest" \
 
 ## Testing
 
-`test/marketing/http_test.clj` starts the real `marketing.http` server
+`test/marketing/http_test.cljk` starts the real `marketing.http` server
 on an ephemeral port (`:port 0`) inside the test JVM via
 `start-server!`, makes real HTTP requests against it with
 `java.net.http` (no mocked handler shortcut), and stops the server in
@@ -390,9 +390,9 @@ committed (op8); a lead-score update disagreeing with the recompute ->
 `202 escalated` (op9); `/dashboard` as an unauthorized role -> 403;
 `/dashboard` as `marketer` -> real data.
 
-## Real-model MarketingOps-LLM advisor (`src/marketing/llm_realmodel.clj`)
+## Real-model MarketingOps-LLM advisor (`src/marketing/llm_realmodel.cljk`)
 
-**Honest gap, and what closes it.** `src/marketing/llm.cljc`'s
+**Honest gap, and what closes it.** `src/marketing/llm.cljk`'s
 MarketingOps-LLM advisor is a SEALED, deterministic mock
 (`marketing.llm/mock-advisor` / `marketing.llm/infer`) — it never calls a
 real language model. That was a genuine, known gap toward real
@@ -459,7 +459,7 @@ boolean):
 - **Verified**: `preflight`'s missing/present reporting across the full
   permutation matrix (openai/anthropic/openclaw, present/absent url,
   present/absent key, unknown provider, blank-string env values) — see
-  `test/marketing/llm_realmodel_test.clj`'s `preflight-*` tests.
+  `test/marketing/llm_realmodel_test.cljk`'s `preflight-*` tests.
 - **Verified**: the exact JSON request this adapter sends (method,
   bearer header, model field, message shape) and its parsing of a
   well-formed OpenAI-compatible response — against a **real local

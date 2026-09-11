@@ -84,7 +84,7 @@ request + injected role/phase context
 lifecycle stage, or updates a lead's score the ConsentGovernor would
 reject.
 
-## Dashboard (`src/marketing/dashboard.cljc`)
+## Dashboard (`src/marketing/dashboard.cljk`)
 
 This actor's first aggregate-view capability — NOT the governed
 single-record disclosure `docs/DESIGN.md` §8 explains this actor
@@ -133,7 +133,7 @@ clojure -M:dev:run
 
 ## Running as a service
 
-`src/marketing/http.clj` is a minimal, real HTTP service layer over the
+`src/marketing/http.cljk` is a minimal, real HTTP service layer over the
 same `marketing.operation`/`marketing.policy`/`marketing.dashboard`
 actor graph — a thin JSON adapter, not a reimplementation of any
 governance logic (mirrors `cloud-itonami-isic-5820`'s `src/crm/http.clj`).
@@ -176,7 +176,7 @@ termination built in, no rate limiting).
 
 By default the MarketingOps-LLM advisor (`marketing.llm`) is a SEALED,
 deterministic mock — no real language model is ever called.
-`src/marketing/llm_realmodel.clj` adds a real OpenAI-compatible/
+`src/marketing/llm_realmodel.cljk` adds a real OpenAI-compatible/
 Anthropic HTTP adapter, wired in via `marketing.http/resolve-advisor!`:
 set `ISIC6201_MODEL_API_KEY` and the server uses it instead of the mock
 (unset/blank = unchanged sealed-mock default). Mirrors
@@ -258,7 +258,7 @@ file's scope note for why no deploy/registry-push step is included
 - `docs/business-model.md` — the OSS open-business blueprint
 - `docs/DESIGN.md` — actor architecture (Japanese)
 - `docs/operator-guide.md` — fork/run/production checklist
-- `docs/api.md` — HTTP API reference (`src/marketing/http.clj`)
+- `docs/api.md` — HTTP API reference (`src/marketing/http.cljk`)
 - `docs/adr/0001-architecture.md` — the authoritative architecture record
 
 ## License

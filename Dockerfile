@@ -19,7 +19,7 @@
 # `:dev`) so the runtime image never needs network access or a JDK.
 #
 # JDK version: Temurin 21 — matches this repo's own `constant-time-string=`
-# docstring in src/marketing/http.clj ("this fleet's JDK (Temurin 21,
+# docstring in src/marketing/http.cljk ("this fleet's JDK (Temurin 21,
 # confirmed via `java -version` at implementation time)"), reconfirmed
 # locally when this Dockerfile was written (`java -version` ->
 # `Temurin-21.0.1+12`).
