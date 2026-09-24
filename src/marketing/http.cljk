@@ -202,7 +202,7 @@
   since `marketing.phase`'s phase-approval gate is bypassed at
   phase 3 — see docs/api.md)."
   [actor request context]
-  (let [thread-id (str (java.util.UUID/randomUUID))
+  (let [thread-id (str (random-uuid))
         res (g/run* actor {:request request :context context} {:thread-id thread-id})
         state (:state res)
         disposition (:disposition state)]
