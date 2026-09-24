@@ -15,7 +15,7 @@
   because spawning a JVM subprocess per test run is slow and this file's
   job is fast regression coverage of the persistence LOGIC."
   (:require [kotoba.test :refer [deftest is testing]]
-            [clojure.edn :as edn]
+            [kotoba.lang.edn :as edn]
             [marketing.store :as store]
             [marketing.file-store :as file-store])
   (:import (java.nio.file Files)
