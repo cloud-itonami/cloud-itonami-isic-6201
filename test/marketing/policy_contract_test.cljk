@@ -2,7 +2,7 @@
   "The governor contract as executable tests. Single invariant under
   test: MarketingOps-LLM never sends/advances/updates a record the
   ConsentGovernor would reject."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [marketing.store :as store]
             [marketing.operation :as op]))

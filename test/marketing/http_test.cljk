@@ -12,7 +12,7 @@
   stage-skip -> stage-sequence-gate hold; op7: clean stage advance ->
   commit; op8: matching lead-score update -> commit; op9: mismatched
   lead-score update -> escalate) rather than inventing new ones."
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
+  (:require [kotoba.test :refer [deftest is testing use-fixtures]]
             [clojure.data.json :as json]
             [org.httpkit.server :as httpkit]
             [marketing.http :as http]

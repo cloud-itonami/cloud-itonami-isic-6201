@@ -1,5 +1,5 @@
 (ns marketing.llm-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [marketing.store :as store]
             [marketing.llm :as llm]))
 
