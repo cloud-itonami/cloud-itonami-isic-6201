@@ -14,7 +14,7 @@
   commit/PR description for that transcript; it is not automated here
   because spawning a JVM subprocess per test run is slow and this file's
   job is fast regression coverage of the persistence LOGIC."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [clojure.edn :as edn]
             [marketing.store :as store]
             [marketing.file-store :as file-store])

@@ -6,7 +6,7 @@
   the ledger facts dashboard.cljc reads are genuine governor output, not
   hand-fabricated), and varied engagement histories including one
   deliberately stale stored :lead-score."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [marketing.store :as store]
             [marketing.operation :as op]
