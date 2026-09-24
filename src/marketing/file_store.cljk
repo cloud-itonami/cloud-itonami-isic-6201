@@ -69,7 +69,7 @@
     write-then-rename per mutation (see `persist!`) — good enough for a
     single operator's dev/small-deployment durability, not a
     replacement for a real transactional database."
-  (:require [clojure.edn :as edn]
+  (:require [kotoba.lang.edn :as edn]
             [marketing.store :as store])
   (:import (java.io File)))
 
