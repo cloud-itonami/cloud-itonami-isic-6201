@@ -13,7 +13,7 @@
   commit; op8: matching lead-score update -> commit; op9: mismatched
   lead-score update -> escalate) rather than inventing new ones."
   (:require [kotoba.test :refer [deftest is testing use-fixtures]]
-            [clojure.data.json :as json]
+            [kotoba.json :as json]
             [org.httpkit.server :as httpkit]
             [marketing.http :as http]
             [marketing.store :as store])
