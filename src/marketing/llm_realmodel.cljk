@@ -75,7 +75,7 @@
   `ISIC6201_MODEL_API_KEY` gets a genuinely wired adapter, but its
   real-call behavior remains unverified until they do."
   (:require [kotoba.lang.text :as str]
-            [clojure.data.json :as json]
+            [kotoba.json :as json]
             [langchain.model :as model]
             [marketing.llm :as llm])
   (:import (java.net URI)
