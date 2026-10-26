@@ -67,7 +67,7 @@ io.github.kotoba-lang/langgraph
  :aliases
  {:dev {:override-deps
         {io.github.kotoba-lang/langchain
-         {:local/root "../../kotoba-lang/langchain"}}}
+        {:local/root "../../kotoba-lang/kotoba/lib/kotoba.langchain"}}}
   :run {:main-opts ["-m" "marketing.sim"]}
   ;; kbb -M:serve → starts the real HTTP service (src/marketing/http.cljk).
   ;; Port: $ISIC6201_HTTP_PORT (default 8080). Auth: $ISIC6201_API_TOKEN
